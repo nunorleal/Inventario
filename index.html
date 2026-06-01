@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Gestor de Inventário - Mudanças</title>
+  <title>Inventário NL</title>
+  <link rel="icon" type="image/png" href="inventario-icon.png" />
+  <link rel="apple-touch-icon" href="inventario-icon.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -30,8 +32,8 @@
   <header class="glass border-b sticky top-0 z-30 px-4 py-3 shadow-sm">
     <div class="max-w-2xl mx-auto flex justify-between items-center gap-3">
       <div class="flex items-center gap-2 text-blue-700 font-bold text-lg min-w-0">
-        <i data-lucide="archive" class="shrink-0"></i>
-        <span class="truncate">Inventário Mudanças</span>
+        <img src="inventario-icon.png" alt="" class="w-8 h-8 rounded-lg shrink-0 object-cover shadow-sm" />
+        <span class="truncate">Inventário NL</span>
       </div>
       <div class="flex gap-2 shrink-0">
         <button id="printBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Imprimir lista">
@@ -73,11 +75,16 @@
       </div>
     </div>
 
-    <div class="flex justify-between items-center mb-4 px-1">
+    <div class="flex justify-between items-center mb-4 px-1 gap-3">
       <span id="itemsCounter" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">A carregar...</span>
-      <button id="resetDataBtn" class="text-xs font-bold text-slate-400 hover:text-red-600 flex items-center gap-1">
-        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Repor lista inicial
-      </button>
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="addInlineBtn" class="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg flex items-center gap-1 transition">
+          <i data-lucide="plus" class="w-3 h-3"></i> <span>Adicionar</span>
+        </button>
+        <button id="resetDataBtn" class="text-xs font-bold text-slate-400 hover:text-red-600 flex items-center gap-1">
+          <i data-lucide="trash-2" class="w-3 h-3"></i> Apagar tudo
+        </button>
+      </div>
     </div>
 
     <div id="itemsContainer" class="space-y-4"></div>
@@ -89,9 +96,9 @@
   </main>
 
   <nav class="fixed bottom-0 left-0 right-0 glass border-t p-2 flex justify-center items-center z-40 max-w-2xl mx-auto shadow-2xl rounded-t-2xl">
-    <button id="tabBoxes" class="flex-1 flex flex-col items-center py-2 transition tab-active relative">
-      <i data-lucide="package"></i>
-      <span class="text-[10px] font-bold mt-1 uppercase">Caixas</span>
+    <button id="tabLocations" class="flex-1 flex flex-col items-center py-2 transition tab-active relative">
+      <i data-lucide="map-pin"></i>
+      <span class="text-[10px] font-bold mt-1 uppercase">Locais</span>
       <span class="tab-line absolute bottom-0 w-8 h-0.5 rounded bg-blue-600 transition-transform origin-center"></span>
     </button>
 
@@ -99,9 +106,9 @@
       <i data-lucide="plus" class="w-8 h-8"></i>
     </button>
 
-    <button id="tabLocations" class="flex-1 flex flex-col items-center py-2 transition text-slate-400 relative">
-      <i data-lucide="map-pin"></i>
-      <span class="text-[10px] font-bold mt-1 uppercase">Locais</span>
+    <button id="tabBoxes" class="flex-1 flex flex-col items-center py-2 transition text-slate-400 relative">
+      <i data-lucide="package"></i>
+      <span class="text-[10px] font-bold mt-1 uppercase">Conteúdos</span>
       <span class="tab-line absolute bottom-0 w-8 h-0.5 rounded bg-blue-600 transition-transform origin-center scale-x-0"></span>
     </button>
   </nav>
@@ -116,7 +123,7 @@
       <form id="itemForm" class="p-5 space-y-4 overflow-y-auto">
         <input type="hidden" id="editId" />
 
-        <div id="photoTrigger" class="w-full h-36 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group hover:border-blue-400 transition">
+        <div id="photoTrigger" class="w-full max-w-64 mx-auto aspect-square bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group hover:border-blue-400 transition">
           <img id="photoPreview" alt="Pré-visualização" class="hidden w-full h-full object-cover" />
           <div id="photoPlaceholder" class="flex flex-col items-center">
             <i data-lucide="camera" class="text-slate-400 mb-1"></i>
@@ -126,18 +133,37 @@
         </div>
         <button id="removePhotoBtn" type="button" class="hidden -mt-2 text-xs font-bold text-red-500 hover:text-red-700">Remover fotografia</button>
 
+        <div id="photoCropControls" class="hidden space-y-3 rounded-xl border bg-slate-50 p-3">
+          <div class="text-[10px] font-bold text-slate-400 uppercase">Ajustar fotografia ao quadrado</div>
+          <div class="mx-auto aspect-square w-full max-w-64 overflow-hidden rounded-xl bg-slate-200 relative">
+            <img id="cropImage" alt="Imagem para recortar" class="absolute left-1/2 top-1/2 max-w-none select-none pointer-events-none" />
+          </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase">Zoom</label>
+            <input id="cropZoom" type="range" min="1" max="3" step="0.01" value="1" class="w-full accent-blue-600" />
+            <label class="block text-[10px] font-bold text-slate-400 uppercase">Horizontal</label>
+            <input id="cropX" type="range" min="-100" max="100" step="1" value="0" class="w-full accent-blue-600" />
+            <label class="block text-[10px] font-bold text-slate-400 uppercase">Vertical</label>
+            <input id="cropY" type="range" min="-100" max="100" step="1" value="0" class="w-full accent-blue-600" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="cancelCropBtn" type="button" class="rounded-lg bg-white px-3 py-2 text-sm font-bold text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100">Cancelar</button>
+            <button id="applyCropBtn" type="button" class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700">Aplicar quadrado</button>
+          </div>
+        </div>
+
         <div class="space-y-1">
-          <label for="itemName" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Nome</label>
+          <label id="itemNameLabel" for="itemName" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Nome</label>
           <input id="itemName" required autocomplete="off" class="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition" />
         </div>
 
         <div class="space-y-1">
-          <label for="itemDesc" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Conteúdo / Descrição</label>
+          <label id="itemDescLabel" for="itemDesc" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Conteúdo / Descrição</label>
           <textarea id="itemDesc" class="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 outline-none h-28 transition resize-none"></textarea>
         </div>
 
         <div id="locationSelectGroup" class="space-y-1">
-          <label for="itemLocation" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Localização</label>
+          <label id="itemLocationLabel" for="itemLocation" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Localização</label>
           <select id="itemLocation" class="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-blue-500 transition bg-white">
             <option value="">Sem local definido</option>
           </select>
@@ -150,13 +176,39 @@
     </div>
   </div>
 
+  <div id="locationDetailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+      <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+        <span id="locationDetailTitle" class="font-bold text-slate-700">Conteúdo do local</span>
+        <button id="closeLocationDetail" class="p-2 hover:bg-slate-200 rounded-full text-slate-400" type="button"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="p-5 space-y-4 overflow-y-auto">
+        <section>
+          <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Conteúdo escrito diretamente</div>
+          <div id="locationDetailContent" class="rounded-xl bg-slate-50 p-3 text-sm text-slate-600 whitespace-pre-wrap break-words"></div>
+        </section>
+
+        <section>
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <div id="locationDetailBoxesTitle" class="text-[10px] font-bold text-slate-400 uppercase">Caixas neste local</div>
+            <button id="locationDetailBoxesBtn" type="button" class="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg flex items-center gap-1 transition">
+              <i data-lucide="package" class="w-3 h-3"></i> Ver na lista
+            </button>
+          </div>
+          <div id="locationDetailBoxes" class="space-y-2"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-[60] hidden bg-slate-900 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-xl"></div>
 
   <script>
     const STORAGE_KEY = 'inventory_html_v2_nuno';
 
     const initialData = {
-      activeTab: 'boxes',
+      activeTab: 'locations',
       locations: [
         { id: 'loc1', name: 'Arrumações - Mudanças', description: 'Local principal', photo: null, createdAt: 1 },
         { id: 'loc2', name: 'Garagem', description: 'Ferramentas', photo: null, createdAt: 2 },
@@ -202,6 +254,10 @@
 
     let appData = structuredClone(initialData);
     let currentPhoto = null;
+    let currentFormType = 'box';
+    let cropSource = null;
+    let cropNaturalWidth = 1;
+    let cropNaturalHeight = 1;
 
     const $ = (id) => document.getElementById(id);
     const escapeHTML = (str = '') => String(str).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
@@ -213,14 +269,15 @@
         if (saved) appData = migrateData(JSON.parse(saved));
       } catch { showToast('Não consegui ler os dados guardados. Usei a lista inicial.'); }
 
+      appData.activeTab = 'locations';
       bindEvents();
-      render();
+      switchTab(appData.activeTab);
       lucide.createIcons();
     }
 
     function migrateData(data) {
       const migrated = { ...structuredClone(initialData), ...data };
-      migrated.locations = (migrated.locations || []).map((item, idx) => ({ photo: null, description: '', createdAt: Date.now() + idx, ...item }));
+      migrated.locations = (migrated.locations || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, ...item }));
       migrated.boxes = (migrated.boxes || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, ...item }));
       migrated.activeTab = migrated.activeTab === 'locations' ? 'locations' : 'boxes';
       return migrated;
@@ -230,8 +287,12 @@
       $('tabBoxes').onclick = () => switchTab('boxes');
       $('tabLocations').onclick = () => switchTab('locations');
       $('addBtn').onclick = () => openModal();
+      $('addInlineBtn').onclick = () => openModal();
       $('closeModal').onclick = closeModal;
-      $('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
+      $('modal').onmousedown = (e) => { if (e.target.id === 'modal') e.preventDefault(); };
+      $('modal').onclick = () => {};
+      $('closeLocationDetail').onclick = closeLocationDetail;
+      $('locationDetailModal').onclick = (e) => { if (e.target.id === 'locationDetailModal') closeLocationDetail(); };
       $('itemForm').onsubmit = handleSave;
       $('searchInput').oninput = render;
       $('clearSearch').onclick = () => { $('searchInput').value = ''; render(); $('searchInput').focus(); };
@@ -241,10 +302,15 @@
       $('importInput').onchange = importJSON;
       $('printBtn').onclick = () => window.print();
       $('resetDataBtn').onclick = resetData;
-      $('removePhotoBtn').onclick = () => { currentPhoto = null; updatePhotoPreview(); };
+      $('removePhotoBtn').onclick = () => { currentPhoto = null; cropSource = null; hideCropControls(); updatePhotoPreview(); };
       $('photoTrigger').onclick = () => $('photoInput').click();
       $('photoInput').onchange = handlePhoto;
-      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+      $('cropZoom').oninput = updateCropPreview;
+      $('cropX').oninput = updateCropPreview;
+      $('cropY').oninput = updateCropPreview;
+      $('applyCropBtn').onclick = applySquareCrop;
+      $('cancelCropBtn').onclick = () => { hideCropControls(); $('photoInput').value = ''; };
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); closeLocationDetail(); } });
     }
 
     function switchTab(tab) {
@@ -261,15 +327,27 @@
       renderSummary();
       renderLocationFilter();
       renderList();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      saveData(true);
       lucide.createIcons();
     }
 
+    function saveData(silent = false) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        return true;
+      } catch {
+        if (!silent) {
+          alert('Não consegui guardar os dados no browser. Exporta um backup e tenta remover algumas fotografias para libertar espaço.');
+        }
+        return false;
+      }
+    }
+
     function renderSummary() {
-      const boxes = appData.boxes.length;
+      const contents = appData.boxes.length + appData.locations.filter(item => item.parentId).length;
       const locations = appData.locations.length;
       const photos = [...appData.boxes, ...appData.locations].filter(i => i.photo).length;
-      $('summary').innerHTML = statCard('package', boxes, 'Caixas') + statCard('map-pin', locations, 'Locais') + statCard('image', photos, 'Fotos');
+      $('summary').innerHTML = statCard('package', contents, 'Conteúdos') + statCard('map-pin', locations, 'Locais') + statCard('image', photos, 'Fotos');
     }
 
     function statCard(icon, value, label) {
@@ -294,90 +372,196 @@
       const search = normalize($('searchInput').value.trim());
       const locationFilter = $('locationFilter').value;
       const sort = $('sortSelect').value;
-      let list = [...appData[appData.activeTab]];
+      let list = search
+        ? [
+            ...appData.locations.map(item => ({ type: 'location', item })),
+            ...appData.boxes.map(item => ({ type: 'box', item }))
+          ]
+        : appData.activeTab === 'boxes'
+        ? [
+            ...appData.boxes.map(item => ({ type: 'box', item })),
+            ...appData.locations.filter(item => item.parentId).map(item => ({ type: 'location', item }))
+          ]
+        : appData.locations.map(item => ({ type: 'location', item }));
 
-      if (appData.activeTab === 'boxes' && locationFilter) {
-        list = list.filter(i => locationFilter === '__none' ? !i.parentId : i.parentId === locationFilter);
+      if (!search && appData.activeTab === 'boxes' && locationFilter) {
+        list = list.filter(entry => locationFilter === '__none' ? !entry.item.parentId : entry.item.parentId === locationFilter);
       }
 
       if (search) {
-        list = list.filter(i => {
-          const loc = appData.locations.find(l => l.id === i.parentId);
-          return normalize(`${i.name} ${i.description} ${loc ? loc.name : ''}`).includes(search);
+        list = list.filter(entry => {
+          const loc = appData.locations.find(l => l.id === entry.item.parentId);
+          return normalize(`${entry.item.name} ${entry.item.description} ${loc ? loc.name : ''}`).includes(search);
         });
       }
 
       list.sort((a,b) => {
-        if (sort === 'nameDesc') return b.name.localeCompare(a.name, 'pt');
-        if (sort === 'recent') return (b.createdAt || 0) - (a.createdAt || 0);
+        if (sort === 'nameDesc') return b.item.name.localeCompare(a.item.name, 'pt');
+        if (sort === 'recent') return (b.item.createdAt || 0) - (a.item.createdAt || 0);
         if (sort === 'location') {
-          const la = appData.locations.find(l => l.id === a.parentId)?.name || '';
-          const lb = appData.locations.find(l => l.id === b.parentId)?.name || '';
-          return la.localeCompare(lb, 'pt') || a.name.localeCompare(b.name, 'pt');
+          const la = appData.locations.find(l => l.id === a.item.parentId)?.name || '';
+          const lb = appData.locations.find(l => l.id === b.item.parentId)?.name || '';
+          return la.localeCompare(lb, 'pt') || a.item.name.localeCompare(b.item.name, 'pt');
         }
-        return a.name.localeCompare(b.name, 'pt');
+        return a.item.name.localeCompare(b.item.name, 'pt');
       });
 
       return list;
     }
 
     function renderList() {
-      const list = appData[appData.activeTab];
       const filtered = getFilteredList();
+      const isSearching = Boolean($('searchInput').value.trim());
+      const total = isSearching
+        ? appData.boxes.length + appData.locations.length
+        : appData.activeTab === 'boxes'
+        ? appData.boxes.length + appData.locations.filter(item => item.parentId).length
+        : appData.locations.length;
+      const selectedLocationId = $('locationFilter').value;
+      const isInsideLocation = appData.activeTab === 'boxes' && selectedLocationId && selectedLocationId !== '__none';
       $('clearSearch').classList.toggle('hidden', !$('searchInput').value);
-      $('itemsCounter').innerText = `${filtered.length} de ${list.length} ${appData.activeTab === 'boxes' ? 'caixas' : 'locais'}`;
+      $('itemsCounter').innerText = `${filtered.length} de ${total} ${isSearching ? 'resultados' : (appData.activeTab === 'boxes' ? 'conteúdos' : 'locais')}`;
+      $('addInlineBtn').querySelector('span').innerText = appData.activeTab === 'boxes'
+        ? (isInsideLocation ? 'Adicionar item aqui' : 'Adicionar item')
+        : 'Adicionar local';
       $('emptyState').classList.toggle('hidden', filtered.length > 0);
-      $('itemsContainer').innerHTML = filtered.map(item => renderCard(item)).join('');
+      $('itemsContainer').innerHTML = filtered.map(entry => renderCard(entry.item, entry.type)).join('');
     }
 
-    function renderCard(item) {
-      const isBox = appData.activeTab === 'boxes';
+    function renderCard(item, type) {
+      const isBox = type === 'box';
+      const isLocation = type === 'location';
       const location = appData.locations.find(l => l.id === item.parentId);
-      const childCount = isBox ? 0 : appData.boxes.filter(b => b.parentId === item.id).length;
-      return `<article class="card-enter print-break bg-white rounded-xl shadow-sm border flex flex-col sm:flex-row overflow-hidden">
-        <div class="w-full sm:w-32 h-32 bg-slate-200 flex-shrink-0">
+      const childCount = isBox ? 0 : appData.boxes.filter(b => b.parentId === item.id).length + appData.locations.filter(l => l.parentId === item.id).length;
+      const description = escapeHTML(formatPreviewText(item.description || ''));
+      const locationContents = description
+        ? `<div class="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            <div class="text-[10px] font-bold uppercase text-slate-400 mb-1">Conteúdo neste local</div>
+            <p class="whitespace-pre-wrap break-words">${description}</p>
+          </div>`
+        : `<p class="text-slate-400 text-sm mt-1 italic">Sem conteúdo descrito diretamente neste local.</p>`;
+      return `<article onclick="${isLocation ? `showBoxesInLocation('${item.id}')` : `openItemPreview('${item.id}')`}" class="card-enter print-break bg-white rounded-xl shadow-sm border flex flex-col sm:flex-row overflow-hidden cursor-pointer hover:border-blue-200 hover:shadow-md transition">
+        <div class="w-full sm:w-40 h-40 bg-slate-200 flex-shrink-0">
           ${item.photo ? `<img src="${item.photo}" alt="${escapeHTML(item.name)}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-300"><i data-lucide="${isBox ? 'package' : 'map-pin'}" class="w-10 h-10"></i></div>`}
         </div>
         <div class="p-4 flex-1 min-w-0">
           <div class="flex justify-between items-start gap-3">
             <div class="flex-1 min-w-0">
               <h3 class="font-bold text-slate-800 break-words">${escapeHTML(item.name)}</h3>
-              <p class="text-slate-500 text-sm mt-1 whitespace-pre-wrap break-words">${escapeHTML(item.description || '')}</p>
+              ${isBox ? `<p class="text-slate-500 text-sm mt-1 whitespace-pre-wrap break-words">${description}</p>` : locationContents}
               <div class="mt-3 flex flex-wrap gap-2">
-                ${isBox ? `<span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>${escapeHTML(location ? location.name : 'Local indefinido')}</span>` : `<button onclick="showBoxesInLocation('${item.id}')" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="package" class="w-3 h-3"></i>${childCount} caixa${childCount === 1 ? '' : 's'}</button>`}
+                ${isBox ? `<span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>${escapeHTML(location ? location.name : 'Local indefinido')}</span>` : `<span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="package" class="w-3 h-3"></i>${childCount} conteúdo${childCount === 1 ? '' : 's'}</span>`}
+                ${isLocation && location ? `<span class="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="corner-down-right" class="w-3 h-3"></i>${escapeHTML(location.name)}</span>` : ''}
+                ${!isBox && item.description ? `<span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="list" class="w-3 h-3"></i>conteúdo próprio</span>` : ''}
               </div>
             </div>
             <div class="flex gap-1 shrink-0">
-              <button onclick="duplicateItem('${item.id}')" class="text-slate-400 hover:text-emerald-600 p-2" title="Duplicar"><i data-lucide="copy" class="w-4 h-4"></i></button>
-              <button onclick="editItem('${item.id}')" class="text-slate-400 hover:text-blue-500 p-2" title="Editar"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-              <button onclick="deleteItem('${item.id}')" class="text-slate-400 hover:text-red-500 p-2" title="Apagar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              <button onclick="event.stopPropagation(); duplicateItem('${item.id}', '${type}')" class="text-slate-400 hover:text-emerald-600 p-2" title="Duplicar"><i data-lucide="copy" class="w-4 h-4"></i></button>
+              <button onclick="event.stopPropagation(); editItem('${item.id}', '${type}')" class="text-slate-400 hover:text-blue-500 p-2" title="Editar"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+              <button onclick="event.stopPropagation(); deleteItem('${item.id}', '${type}')" class="text-slate-400 hover:text-red-500 p-2" title="Apagar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
           </div>
         </div>
       </article>`;
     }
 
+    function formatPreviewText(text) {
+      const lines = String(text)
+        .split(/\n|,/)
+        .map(line => line.trim())
+        .filter(Boolean);
+      if (lines.length <= 3) return lines.join('\n');
+      return `${lines[0]}\n${lines[1]}\n${lines[2]}...`;
+    }
+
+    function openItemPreview(itemId) {
+      const item = appData.boxes.find(box => box.id === itemId);
+      if (!item) return;
+      const location = appData.locations.find(l => l.id === item.parentId);
+      $('locationDetailTitle').innerText = item.name;
+      $('locationDetailContent').innerHTML = item.description
+        ? escapeHTML(item.description)
+        : '<span class="text-slate-400 italic">Sem conteúdo descrito.</span>';
+      $('locationDetailBoxesTitle').innerText = 'Localização';
+      $('locationDetailBoxesBtn').classList.add('hidden');
+      $('locationDetailBoxes').innerHTML = `<div class="rounded-xl bg-blue-50 p-3 text-sm font-bold text-blue-700 inline-flex items-center gap-2">
+        <i data-lucide="map-pin" class="w-4 h-4"></i>${escapeHTML(location ? location.name : 'Local indefinido')}
+      </div>`;
+      $('locationDetailModal').classList.remove('hidden');
+      $('locationDetailModal').classList.add('flex');
+      document.body.classList.add('modal-active');
+      lucide.createIcons();
+    }
+
+    function openLocationDetail(locationId) {
+      const location = appData.locations.find(l => l.id === locationId);
+      if (!location) return;
+      const boxes = appData.boxes.filter(b => b.parentId === locationId).sort((a,b) => a.name.localeCompare(b.name, 'pt'));
+      $('locationDetailTitle').innerText = location.name;
+      $('locationDetailContent').innerHTML = location.description
+        ? escapeHTML(location.description)
+        : '<span class="text-slate-400 italic">Sem conteúdo descrito diretamente neste local.</span>';
+      $('locationDetailBoxesTitle').innerText = `${boxes.length} caixa${boxes.length === 1 ? '' : 's'} neste local`;
+      $('locationDetailBoxesBtn').classList.toggle('hidden', boxes.length === 0);
+      $('locationDetailBoxesBtn').onclick = () => showBoxesInLocation(locationId);
+      $('locationDetailBoxes').innerHTML = boxes.length ? boxes.map(box => `
+        <div class="rounded-xl border bg-white p-3">
+          <div class="font-bold text-sm text-slate-800">${escapeHTML(box.name)}</div>
+          <div class="text-sm text-slate-500 mt-1 whitespace-pre-wrap break-words">${escapeHTML(box.description || '')}</div>
+        </div>
+      `).join('') : '<div class="rounded-xl bg-slate-50 p-3 text-sm text-slate-400 italic">Não há caixas associadas a este local.</div>';
+      $('locationDetailModal').classList.remove('hidden');
+      $('locationDetailModal').classList.add('flex');
+      document.body.classList.add('modal-active');
+      lucide.createIcons();
+    }
+
+    function closeLocationDetail() {
+      $('locationDetailModal').classList.add('hidden');
+      $('locationDetailModal').classList.remove('flex');
+      if ($('modal').classList.contains('hidden')) document.body.classList.remove('modal-active');
+    }
+
     function showBoxesInLocation(locationId) {
+      closeLocationDetail();
       switchTab('boxes');
       $('locationFilter').value = locationId;
       render();
     }
 
-    function openModal(editingItem = null) {
+    function openModal(editingItem = null, type = null) {
+      currentFormType = type || (appData.activeTab === 'boxes' ? 'box' : 'location');
+      const isBoxForm = currentFormType === 'box';
+      const selectedLocation = appData.locations.find(l => l.id === $('locationFilter').value);
       $('itemForm').reset();
       $('editId').value = editingItem ? editingItem.id : '';
       currentPhoto = editingItem ? editingItem.photo : null;
+      cropSource = null;
+      hideCropControls();
       updatePhotoPreview();
-      $('itemLocation').innerHTML = '<option value="">Sem local definido</option>' + appData.locations.map(l => `<option value="${escapeHTML(l.id)}">${escapeHTML(l.name)}</option>`).join('');
-      $('modalTitle').innerText = editingItem ? 'Editar registo' : (appData.activeTab === 'boxes' ? 'Nova caixa' : 'Novo local');
+      const locationOptions = appData.locations
+        .filter(l => !editingItem || l.id !== editingItem.id)
+        .map(l => `<option value="${escapeHTML(l.id)}">${escapeHTML(l.name)}</option>`)
+        .join('');
+      $('itemLocation').innerHTML = `<option value="">${isBoxForm ? 'Sem local definido' : 'Local principal'}</option>` + locationOptions;
+      $('modalTitle').innerText = editingItem ? 'Editar registo' : (isBoxForm ? (selectedLocation ? `Novo item em ${selectedLocation.name}` : 'Novo item') : 'Novo local');
+      $('itemNameLabel').innerText = isBoxForm ? 'Nome do item' : 'Nome do local';
+      $('itemDescLabel').innerText = isBoxForm ? 'Conteúdo / Descrição do item' : 'Conteúdo guardado diretamente neste local';
+      $('itemLocationLabel').innerText = isBoxForm ? 'Localização' : 'Dentro de';
+      $('itemName').placeholder = isBoxForm ? 'Ex.: Caixa cabos USB, saco, pasta, objeto...' : 'Ex.: Cofre';
+      $('itemDesc').placeholder = isBoxForm
+        ? 'Ex.: cabos USB-C, adaptadores, carregadores...'
+        : 'Ex.: passaportes, relógios, documentos, chaves...';
 
       if (editingItem) {
         $('itemName').value = editingItem.name || '';
         $('itemDesc').value = editingItem.description || '';
         $('itemLocation').value = editingItem.parentId || '';
+      } else if ($('locationFilter').value && $('locationFilter').value !== '__none') {
+        $('itemLocation').value = $('locationFilter').value;
       }
 
-      $('locationSelectGroup').style.display = appData.activeTab === 'boxes' ? 'block' : 'none';
+      $('locationSelectGroup').style.display = 'block';
       $('modal').classList.remove('hidden');
       $('modal').classList.add('flex');
       document.body.classList.add('modal-active');
@@ -409,69 +593,140 @@
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => resizeImage(reader.result, 1280, 0.72).then(data => {
-        currentPhoto = data;
-        updatePhotoPreview();
-        showToast('Fotografia adicionada.');
-      });
+      reader.onload = () => openCropControls(reader.result);
       reader.readAsDataURL(file);
     }
 
-    function resizeImage(dataUrl, maxSize, quality) {
+    function openCropControls(dataUrl) {
+      cropSource = dataUrl;
+      $('cropZoom').value = 1;
+      $('cropX').value = 0;
+      $('cropY').value = 0;
+      $('cropImage').src = dataUrl;
+      $('photoCropControls').classList.remove('hidden');
+      const img = new Image();
+      img.onload = () => {
+        cropNaturalWidth = img.naturalWidth || img.width;
+        cropNaturalHeight = img.naturalHeight || img.height;
+        updateCropPreview();
+      };
+      img.src = dataUrl;
+    }
+
+    function hideCropControls() {
+      $('photoCropControls').classList.add('hidden');
+    }
+
+    function updateCropPreview() {
+      if (!cropSource) return;
+      const zoom = Number($('cropZoom').value);
+      const x = Number($('cropX').value);
+      const y = Number($('cropY').value);
+      const isWide = cropNaturalWidth >= cropNaturalHeight;
+      $('cropImage').style.width = isWide ? `${100 * zoom}%` : 'auto';
+      $('cropImage').style.height = isWide ? 'auto' : `${100 * zoom}%`;
+      $('cropImage').style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+    }
+
+    function applySquareCrop() {
+      if (!cropSource) return;
+      cropImageToSquare(cropSource, Number($('cropZoom').value), Number($('cropX').value), Number($('cropY').value), 420, 0.58).then(data => {
+        currentPhoto = data;
+        hideCropControls();
+        updatePhotoPreview();
+        $('photoInput').value = '';
+        showToast('Fotografia ajustada e comprimida.');
+      });
+    }
+
+    function cropImageToSquare(dataUrl, zoom, offsetX, offsetY, size, quality) {
       return new Promise(resolve => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          let { width, height } = img;
-          const ratio = Math.min(1, maxSize / Math.max(width, height));
-          width = Math.round(width * ratio); height = Math.round(height * ratio);
-          canvas.width = width; canvas.height = height;
-          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          const baseScale = Math.max(size / img.width, size / img.height);
+          const scale = baseScale * zoom;
+          const drawWidth = img.width * scale;
+          const drawHeight = img.height * scale;
+          const drawX = (size - drawWidth) / 2 + offsetX * 2;
+          const drawY = (size - drawHeight) / 2 + offsetY * 2;
+          ctx.fillStyle = '#e2e8f0';
+          ctx.fillRect(0, 0, size, size);
+          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+          resolve(getSmallImageDataUrl(canvas, quality));
         };
         img.src = dataUrl;
       });
     }
 
+    function getSmallImageDataUrl(canvas, quality) {
+      const webp = canvas.toDataURL('image/webp', quality);
+      if (webp.startsWith('data:image/webp')) return webp;
+      return canvas.toDataURL('image/jpeg', quality);
+    }
+
     function handleSave(e) {
       e.preventDefault();
       const id = $('editId').value;
+      const collection = currentFormType === 'location' ? 'locations' : 'boxes';
+      const previousData = structuredClone(appData);
       const item = {
         id: id || crypto.randomUUID(),
         name: $('itemName').value.trim(),
         description: $('itemDesc').value.trim(),
         photo: currentPhoto,
-        createdAt: id ? (appData[appData.activeTab].find(i => i.id === id)?.createdAt || Date.now()) : Date.now()
+        parentId: $('itemLocation').value,
+        createdAt: id ? (appData[collection].find(i => i.id === id)?.createdAt || Date.now()) : Date.now()
       };
-      if (appData.activeTab === 'boxes') item.parentId = $('itemLocation').value;
 
-      if (id) appData[appData.activeTab] = appData[appData.activeTab].map(i => i.id === id ? { ...i, ...item } : i);
-      else appData[appData.activeTab].unshift(item);
+      if (id) appData[collection] = appData[collection].map(i => i.id === id ? { ...i, ...item } : i);
+      else appData[collection].unshift(item);
+
+      if (!saveData(false)) {
+        appData = previousData;
+        return;
+      }
 
       closeModal();
       render();
       showToast(id ? 'Registo atualizado.' : 'Registo criado.');
     }
 
-    function editItem(id) { openModal(appData[appData.activeTab].find(i => i.id === id)); }
+    function editItem(id, type = null) {
+      const itemType = type || (appData.locations.some(i => i.id === id) ? 'location' : 'box');
+      const collection = itemType === 'location' ? appData.locations : appData.boxes;
+      openModal(collection.find(i => i.id === id), itemType);
+    }
 
-    function duplicateItem(id) {
-      const original = appData[appData.activeTab].find(i => i.id === id);
+    function duplicateItem(id, type = null) {
+      const itemType = type || (appData.locations.some(i => i.id === id) ? 'location' : 'box');
+      const collectionName = itemType === 'location' ? 'locations' : 'boxes';
+      const original = appData[collectionName].find(i => i.id === id);
       if (!original) return;
-      appData[appData.activeTab].unshift({ ...original, id: crypto.randomUUID(), name: `${original.name} — cópia`, createdAt: Date.now() });
+      appData[collectionName].unshift({ ...original, id: crypto.randomUUID(), name: `${original.name} — cópia`, createdAt: Date.now() });
       render();
       showToast('Registo duplicado.');
     }
 
-    function deleteItem(id) {
-      const item = appData[appData.activeTab].find(i => i.id === id);
+    function deleteItem(id, type = null) {
+      const itemType = type || (appData.locations.some(i => i.id === id) ? 'location' : 'box');
+      const collectionName = itemType === 'location' ? 'locations' : 'boxes';
+      const item = appData[collectionName].find(i => i.id === id);
       if (!item) return;
-      const isLocation = appData.activeTab === 'locations';
+      const isLocation = itemType === 'location';
       const boxesInside = isLocation ? appData.boxes.filter(b => b.parentId === id).length : 0;
-      const msg = boxesInside ? `Apagar "${item.name}"? As ${boxesInside} caixas associadas ficam sem local definido.` : `Apagar "${item.name}"?`;
+      const locationsInside = isLocation ? appData.locations.filter(l => l.parentId === id).length : 0;
+      const totalInside = boxesInside + locationsInside;
+      const msg = totalInside ? `Apagar o local "${item.name}"? Os ${totalInside} conteúdos associados NÃO serão apagados; ficam apenas sem local definido.` : `Apagar "${item.name}"?`;
       if (!confirm(msg)) return;
-      appData[appData.activeTab] = appData[appData.activeTab].filter(i => i.id !== id);
-      if (isLocation) appData.boxes = appData.boxes.map(b => b.parentId === id ? { ...b, parentId: '' } : b);
+      appData[collectionName] = appData[collectionName].filter(i => i.id !== id);
+      if (isLocation) {
+        appData.boxes = appData.boxes.map(b => b.parentId === id ? { ...b, parentId: '' } : b);
+        appData.locations = appData.locations.map(l => l.parentId === id ? { ...l, parentId: '' } : l);
+      }
       render();
       showToast('Registo apagado.');
     }
@@ -480,9 +735,17 @@
       const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const dl = document.createElement('a');
-      const date = new Date().toISOString().slice(0, 10);
+      const date = new Date();
+      const stamp = [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0')
+      ].join('-') + '_' + [
+        String(date.getHours()).padStart(2, '0'),
+        String(date.getMinutes()).padStart(2, '0')
+      ].join('-');
       dl.href = url;
-      dl.download = `backup_inventario_${date}.json`;
+      dl.download = `Inventario_NL_${stamp}.json`;
       dl.click();
       URL.revokeObjectURL(url);
       showToast('Backup exportado.');
@@ -506,10 +769,18 @@
     }
 
     function resetData() {
-      if (!confirm('Repor a lista inicial? Os dados atuais serão substituídos. Faz primeiro um backup se precisares.')) return;
-      appData = structuredClone(initialData);
+      const total = appData.boxes.length + appData.locations.length;
+      if (!confirm(`Apagar todos os ${total} registos? Esta ação remove locais, conteúdos e fotos guardadas. Exporta um backup antes se precisares.`)) return;
+      const typed = prompt('Para confirmar, escreve APAGAR TUDO em maiúsculas.');
+      if (typed !== 'APAGAR TUDO') {
+        showToast('Operação cancelada.');
+        return;
+      }
+      appData = { activeTab: 'locations', locations: [], boxes: [] };
+      $('searchInput').value = '';
+      $('locationFilter').value = '';
       render();
-      showToast('Lista inicial reposta.');
+      showToast('Inventário apagado.');
     }
 
     let toastTimer;

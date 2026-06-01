@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Gestor de Inventário - Mudanças</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root { color-scheme: light; }
+    html { scroll-behavior: smooth; }
+    body.modal-active { overflow: hidden; }
+    .tab-active { color: #2563eb; }
+    .tab-active .tab-line { transform: scaleX(1); }
+    .safe-bottom { padding-bottom: max(6rem, env(safe-area-inset-bottom)); }
+    .glass { background: rgba(255,255,255,.86); backdrop-filter: blur(14px); }
+    .card-enter { animation: cardIn .18s ease-out both; }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @media print {
+      header, nav, #toolbar, #modal, #toast { display: none !important; }
+      body { background: white !important; padding-bottom: 0 !important; }
+      main { max-width: none !important; }
+      .print-break { break-inside: avoid; }
+      .shadow-sm, .shadow-lg { box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen safe-bottom">
+
+  <header class="glass border-b sticky top-0 z-30 px-4 py-3 shadow-sm">
+    <div class="max-w-2xl mx-auto flex justify-between items-center gap-3">
+      <div class="flex items-center gap-2 text-blue-700 font-bold text-lg min-w-0">
+        <i data-lucide="archive" class="shrink-0"></i>
+        <span class="truncate">Inventário Mudanças</span>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <button id="printBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Imprimir lista">
+          <i data-lucide="printer"></i>
+        </button>
+        <label class="p-2 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition text-slate-600" title="Importar JSON">
+          <i data-lucide="upload"></i>
+          <input type="file" id="importInput" class="hidden" accept=".json,application/json" />
+        </label>
+        <button id="exportBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Exportar backup">
+          <i data-lucide="download"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-2xl mx-auto p-4">
+    <section id="summary" class="grid grid-cols-3 gap-2 mb-4"></section>
+
+    <div id="toolbar" class="space-y-3 mb-4">
+      <div class="relative">
+        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5"></i>
+        <input type="text" id="searchInput" placeholder="Pesquisar caixas, locais, conteúdos..." class="w-full pl-10 pr-10 py-3 rounded-xl border-0 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+        <button id="clearSearch" class="hidden absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-700" title="Limpar pesquisa">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <select id="locationFilter" class="p-3 bg-white rounded-xl border-0 shadow-sm ring-1 ring-slate-100 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+          <option value="">Todos os locais</option>
+        </select>
+        <select id="sortSelect" class="p-3 bg-white rounded-xl border-0 shadow-sm ring-1 ring-slate-100 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+          <option value="nameAsc">Ordenar: A-Z</option>
+          <option value="nameDesc">Ordenar: Z-A</option>
+          <option value="recent">Mais recentes primeiro</option>
+          <option value="location">Por localização</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center mb-4 px-1">
+      <span id="itemsCounter" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">A carregar...</span>
+      <button id="resetDataBtn" class="text-xs font-bold text-slate-400 hover:text-red-600 flex items-center gap-1">
+        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Repor lista inicial
+      </button>
+    </div>
+
+    <div id="itemsContainer" class="space-y-4"></div>
+    <div id="emptyState" class="hidden text-center py-14 text-slate-400">
+      <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-3"></i>
+      <p class="font-bold">Não encontrei resultados.</p>
+      <p class="text-sm">Experimenta mudar a pesquisa ou os filtros.</p>
+    </div>
+  </main>
+
+  <nav class="fixed bottom-0 left-0 right-0 glass border-t p-2 flex justify-center items-center z-40 max-w-2xl mx-auto shadow-2xl rounded-t-2xl">
+    <button id="tabBoxes" class="flex-1 flex flex-col items-center py-2 transition tab-active relative">
+      <i data-lucide="package"></i>
+      <span class="text-[10px] font-bold mt-1 uppercase">Caixas</span>
+      <span class="tab-line absolute bottom-0 w-8 h-0.5 rounded bg-blue-600 transition-transform origin-center"></span>
+    </button>
+
+    <button id="addBtn" class="bg-blue-600 text-white w-14 h-14 rounded-full flex items-center justify-center -mt-12 border-4 border-slate-50 shadow-lg active:scale-90 transition hover:bg-blue-700" title="Adicionar">
+      <i data-lucide="plus" class="w-8 h-8"></i>
+    </button>
+
+    <button id="tabLocations" class="flex-1 flex flex-col items-center py-2 transition text-slate-400 relative">
+      <i data-lucide="map-pin"></i>
+      <span class="text-[10px] font-bold mt-1 uppercase">Locais</span>
+      <span class="tab-line absolute bottom-0 w-8 h-0.5 rounded bg-blue-600 transition-transform origin-center scale-x-0"></span>
+    </button>
+  </nav>
+
+  <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+      <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+        <span id="modalTitle" class="font-bold text-slate-700">Novo registo</span>
+        <button id="closeModal" class="p-2 hover:bg-slate-200 rounded-full text-slate-400" type="button"><i data-lucide="x"></i></button>
+      </div>
+
+      <form id="itemForm" class="p-5 space-y-4 overflow-y-auto">
+        <input type="hidden" id="editId" />
+
+        <div id="photoTrigger" class="w-full h-36 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group hover:border-blue-400 transition">
+          <img id="photoPreview" alt="Pré-visualização" class="hidden w-full h-full object-cover" />
+          <div id="photoPlaceholder" class="flex flex-col items-center">
+            <i data-lucide="camera" class="text-slate-400 mb-1"></i>
+            <span class="text-xs text-slate-500 font-medium">Adicionar foto</span>
+          </div>
+          <input id="photoInput" type="file" class="hidden" accept="image/*" capture="environment" />
+        </div>
+        <button id="removePhotoBtn" type="button" class="hidden -mt-2 text-xs font-bold text-red-500 hover:text-red-700">Remover fotografia</button>
+
+        <div class="space-y-1">
+          <label for="itemName" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Nome</label>
+          <input id="itemName" required autocomplete="off" class="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+        </div>
+
+        <div class="space-y-1">
+          <label for="itemDesc" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Conteúdo / Descrição</label>
+          <textarea id="itemDesc" class="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 outline-none h-28 transition resize-none"></textarea>
+        </div>
+
+        <div id="locationSelectGroup" class="space-y-1">
+          <label for="itemLocation" class="text-[10px] font-bold text-slate-400 uppercase ml-1">Localização</label>
+          <select id="itemLocation" class="w-full p-3 bg-slate-50 rounded-xl border-0 ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-blue-500 transition bg-white">
+            <option value="">Sem local definido</option>
+          </select>
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-95 transition mt-2">
+          <i data-lucide="save" class="w-5 h-5"></i> <span>Guardar</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-[60] hidden bg-slate-900 text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-xl"></div>
+
+  <script>
+    const STORAGE_KEY = 'inventory_html_v2_nuno';
+
+    const initialData = {
+      activeTab: 'boxes',
+      locations: [
+        { id: 'loc1', name: 'Arrumações - Mudanças', description: 'Local principal', photo: null, createdAt: 1 },
+        { id: 'loc2', name: 'Garagem', description: 'Ferramentas', photo: null, createdAt: 2 },
+        { id: 'loc3', name: 'Casa dos Pais', description: 'Gaveta cama Sandra', photo: null, createdAt: 3 }
+      ],
+      boxes: [
+        { id: '1', name: 'Caixa Plástico Transparente - Transformadores', description: 'Transformadores, Carregadores iPhone, Adaptadores, Ponteiras, 2 Carregadores Pilhas', parentId: 'loc1' },
+        { id: '2', name: 'Caixa Plástico Transparente - CABOS DE MÚSICA', description: 'Midi, Óticos', parentId: 'loc1' },
+        { id: '3', name: 'Caixa Plástico Transparente - FICHAS ADAPTADORES TRIPLAS', description: 'Temporizador analógico, Adaptadores fichas chinesas, Triplas', parentId: 'loc1' },
+        { id: '4', name: 'Caixa Plástico Preta - EXTENSÕES TRIPLAS CABOS AC', description: 'Extensões, Triplas, Cabos AC', parentId: 'loc1' },
+        { id: '5', name: 'Caixa Plástico n.º2 25L Preta - CABOS MÚSICA XLR', description: 'Cabos XLR, Cabos XLR - Jack', parentId: 'loc1' },
+        { id: '6', name: 'Caixa Plástico Transparente - CABOS USB', description: 'USB A, USB B, USB C', parentId: 'loc1' },
+        { id: '7', name: 'Caixa Plástico Transparente Baixa - CABOS USB COAXIAL REDE HDMI SCART', description: 'COAXIAL, Adaptadores TV, Scart, HDMI', parentId: 'loc1' },
+        { id: '8', name: 'Caixa Plástico Transparente - CABOS DE REDE', description: 'RJ45, RJ11', parentId: 'loc1' },
+        { id: '9', name: 'Caixa Plástico Transparente Pequena - Pilhas', description: 'AAA, AA, CR2032, LR44, 9V', parentId: 'loc1' },
+        { id: '10', name: 'Caixa Plástico Transparente Pequena - Batentes', description: 'Borracha e Feltro', parentId: 'loc1' },
+        { id: '11', name: 'Caixa Cartão Pequena - Fotografias e Cartas Nuno Leal', description: 'Cartas, Postais, Fotos, Medalhas, CDs virgens', parentId: 'loc1' },
+        { id: '12', name: 'Caixa Cartão Grande - Consolas e Vários', description: 'PS1, PS3, Nintendo 1, Buzz, Jogos PS3, Teclados, Ratos, DVD, VHS', parentId: 'loc1' },
+        { id: '13', name: 'Caixa Cartão Pequena - INFORMÁTICA e VÁRIOS', description: 'Discos 3.5, Box TV, Split RCA, Colunas Sony, Ipod, Gravador, Diplomas', parentId: 'loc1' },
+        { id: '14', name: 'Caixa Cartão Grande - Manuais Escola', description: 'Manuais, Flautas, Dossiers Xanadu, Pastas', parentId: 'loc1' },
+        { id: '15', name: 'Caixa Cartão Grande - CDs e DVDs Minidisks', description: 'DVDs Filmes, Música, Casamento, Concertos, Minidisks', parentId: 'loc1' },
+        { id: '16', name: 'Caixa Cartão 20Kg - CDs', description: 'Jogos PS1, PC, Backups, MP3', parentId: 'loc1' },
+        { id: '17', name: 'Caixa Cartão 20Kg - DVDs & CDs', description: 'Originais, Exames médicos, Raio X, Ressonâncias', parentId: 'loc1' },
+        { id: '18', name: 'Caixa Cartão Grande Moving Box - Dossiers', description: 'Organizados e Vazios, Separadores', parentId: 'loc1' },
+        { id: '19', name: 'Caixa Cartão Grande Moving Box - 2 Dossiers Resmas', description: 'Dossiers vazios, resmas, Manuais 6º Ano', parentId: 'loc1' },
+        { id: '20', name: 'Caixa Cartão 20Kg iTools - Material de Escritório', description: 'Guilhotina, Plastificadora, Canetas, Discos', parentId: 'loc1' },
+        { id: '21', name: 'Caixa Cartão Eusébio - Material Útil 3', description: 'Roland JV1010, Microfones SM57, Cordas, Faturas, Pés TV LG', parentId: 'loc1' },
+        { id: '22', name: 'Caixa Cartão Eusébio - Material Útil 4', description: 'Bolsa MacBook, Jogos PS5, Tesla miniatura, Diplomas', parentId: 'loc1' },
+        { id: '23', name: 'Caixa Cartão Eusébio - Roupa 1 NL', description: 'Robes, Gabardine, Gravatas', parentId: 'loc1' },
+        { id: '24', name: 'Caixa Cartão Eusébio - Roupa 2 NL', description: 'Calçado, Camisolas Inverno', parentId: 'loc1' },
+        { id: '25', name: 'Caixa Cartão Eusébio - Roupa 3 NL', description: 'Sweats, Casacos, Luvas', parentId: 'loc1' },
+        { id: '26', name: 'Caixa Cartão Eusébio - Roupa 4 NL', description: 'Tshirts velhas, Pijamas, Kilt, Fato Árabe, Fato Freira, Meias', parentId: 'loc1' },
+        { id: '27', name: 'Caixa Cartão Eusébio - Calçado 1 NL', description: 'Botas Mota, Chinelos, Sabrinas, Sapatilhas', parentId: 'loc1' },
+        { id: '28', name: 'Caixa Cartão Eusébio - Calçado 2 NL', description: 'Botas, Sapatilhas, Cachecóis', parentId: 'loc1' },
+        { id: '29', name: 'Caixa Cartão Eusébio - Garagem 1', description: 'Lâmpadas, Insufláveis, Tenda, Peças BMW, Quadlock', parentId: 'loc2' },
+        { id: '30', name: 'Caixa Cartão Eusébio - Garagem 2', description: 'Mini Drill, Lixadeira, Serra, Berbequim, Rebarbadora, Nível', parentId: 'loc2' },
+        { id: '31', name: 'Caixa Cartão Eusébio - Roupa 5 NL', description: 'Interiores, Calçado velho, Sapatilhas bicicleta', parentId: 'loc1' },
+        { id: '32', name: 'Caixa Cartão Eusébio - Escritório Secretária', description: 'Candeeiro, Beats, Blue Ray Apple', parentId: 'loc1' },
+        { id: '33', name: 'Caixa Cartão 20Kg iTools - Escritório 2', description: 'Câmara Vídeo 8, Tinteiros Epson, Stickers Vretti', parentId: 'loc1' },
+        { id: '34', name: 'Gaveta cama Sandra casa dos pais', description: 'Roupa Vinted, Calções praia, Luvas', parentId: 'loc3' }
+      ].map((box, index) => ({ ...box, photo: null, createdAt: index + 10 }))
+    };
+
+    let appData = structuredClone(initialData);
+    let currentPhoto = null;
+
+    const $ = (id) => document.getElementById(id);
+    const escapeHTML = (str = '') => String(str).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
+    const normalize = (str = '') => String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    function init() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('inventory_html_final');
+        if (saved) appData = migrateData(JSON.parse(saved));
+      } catch { showToast('Não consegui ler os dados guardados. Usei a lista inicial.'); }
+
+      bindEvents();
+      render();
+      lucide.createIcons();
+    }
+
+    function migrateData(data) {
+      const migrated = { ...structuredClone(initialData), ...data };
+      migrated.locations = (migrated.locations || []).map((item, idx) => ({ photo: null, description: '', createdAt: Date.now() + idx, ...item }));
+      migrated.boxes = (migrated.boxes || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, ...item }));
+      migrated.activeTab = migrated.activeTab === 'locations' ? 'locations' : 'boxes';
+      return migrated;
+    }
+
+    function bindEvents() {
+      $('tabBoxes').onclick = () => switchTab('boxes');
+      $('tabLocations').onclick = () => switchTab('locations');
+      $('addBtn').onclick = () => openModal();
+      $('closeModal').onclick = closeModal;
+      $('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
+      $('itemForm').onsubmit = handleSave;
+      $('searchInput').oninput = render;
+      $('clearSearch').onclick = () => { $('searchInput').value = ''; render(); $('searchInput').focus(); };
+      $('locationFilter').onchange = render;
+      $('sortSelect').onchange = render;
+      $('exportBtn').onclick = exportJSON;
+      $('importInput').onchange = importJSON;
+      $('printBtn').onclick = () => window.print();
+      $('resetDataBtn').onclick = resetData;
+      $('removePhotoBtn').onclick = () => { currentPhoto = null; updatePhotoPreview(); };
+      $('photoTrigger').onclick = () => $('photoInput').click();
+      $('photoInput').onchange = handlePhoto;
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    }
+
+    function switchTab(tab) {
+      appData.activeTab = tab;
+      $('locationFilter').value = '';
+      $('tabBoxes').className = `flex-1 flex flex-col items-center py-2 transition relative ${tab === 'boxes' ? 'tab-active' : 'text-slate-400'}`;
+      $('tabLocations').className = `flex-1 flex flex-col items-center py-2 transition relative ${tab === 'locations' ? 'tab-active' : 'text-slate-400'}`;
+      $('tabBoxes').querySelector('.tab-line').classList.toggle('scale-x-0', tab !== 'boxes');
+      $('tabLocations').querySelector('.tab-line').classList.toggle('scale-x-0', tab !== 'locations');
+      render();
+    }
+
+    function render() {
+      renderSummary();
+      renderLocationFilter();
+      renderList();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      lucide.createIcons();
+    }
+
+    function renderSummary() {
+      const boxes = appData.boxes.length;
+      const locations = appData.locations.length;
+      const photos = [...appData.boxes, ...appData.locations].filter(i => i.photo).length;
+      $('summary').innerHTML = statCard('package', boxes, 'Caixas') + statCard('map-pin', locations, 'Locais') + statCard('image', photos, 'Fotos');
+    }
+
+    function statCard(icon, value, label) {
+      return `<div class="bg-white rounded-2xl p-3 shadow-sm border text-center">
+        <i data-lucide="${icon}" class="w-5 h-5 mx-auto text-blue-600 mb-1"></i>
+        <div class="font-black text-lg">${value}</div>
+        <div class="text-[10px] font-bold uppercase text-slate-400">${label}</div>
+      </div>`;
+    }
+
+    function renderLocationFilter() {
+      const selected = $('locationFilter').value;
+      $('locationFilter').disabled = appData.activeTab !== 'boxes';
+      $('locationFilter').classList.toggle('opacity-50', appData.activeTab !== 'boxes');
+      $('locationFilter').innerHTML = '<option value="">Todos os locais</option>' + appData.locations
+        .slice().sort((a,b) => a.name.localeCompare(b.name, 'pt'))
+        .map(l => `<option value="${escapeHTML(l.id)}">${escapeHTML(l.name)}</option>`).join('') + '<option value="__none">Sem local definido</option>';
+      $('locationFilter').value = selected;
+    }
+
+    function getFilteredList() {
+      const search = normalize($('searchInput').value.trim());
+      const locationFilter = $('locationFilter').value;
+      const sort = $('sortSelect').value;
+      let list = [...appData[appData.activeTab]];
+
+      if (appData.activeTab === 'boxes' && locationFilter) {
+        list = list.filter(i => locationFilter === '__none' ? !i.parentId : i.parentId === locationFilter);
+      }
+
+      if (search) {
+        list = list.filter(i => {
+          const loc = appData.locations.find(l => l.id === i.parentId);
+          return normalize(`${i.name} ${i.description} ${loc ? loc.name : ''}`).includes(search);
+        });
+      }
+
+      list.sort((a,b) => {
+        if (sort === 'nameDesc') return b.name.localeCompare(a.name, 'pt');
+        if (sort === 'recent') return (b.createdAt || 0) - (a.createdAt || 0);
+        if (sort === 'location') {
+          const la = appData.locations.find(l => l.id === a.parentId)?.name || '';
+          const lb = appData.locations.find(l => l.id === b.parentId)?.name || '';
+          return la.localeCompare(lb, 'pt') || a.name.localeCompare(b.name, 'pt');
+        }
+        return a.name.localeCompare(b.name, 'pt');
+      });
+
+      return list;
+    }
+
+    function renderList() {
+      const list = appData[appData.activeTab];
+      const filtered = getFilteredList();
+      $('clearSearch').classList.toggle('hidden', !$('searchInput').value);
+      $('itemsCounter').innerText = `${filtered.length} de ${list.length} ${appData.activeTab === 'boxes' ? 'caixas' : 'locais'}`;
+      $('emptyState').classList.toggle('hidden', filtered.length > 0);
+      $('itemsContainer').innerHTML = filtered.map(item => renderCard(item)).join('');
+    }
+
+    function renderCard(item) {
+      const isBox = appData.activeTab === 'boxes';
+      const location = appData.locations.find(l => l.id === item.parentId);
+      const childCount = isBox ? 0 : appData.boxes.filter(b => b.parentId === item.id).length;
+      return `<article class="card-enter print-break bg-white rounded-xl shadow-sm border flex flex-col sm:flex-row overflow-hidden">
+        <div class="w-full sm:w-32 h-32 bg-slate-200 flex-shrink-0">
+          ${item.photo ? `<img src="${item.photo}" alt="${escapeHTML(item.name)}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-300"><i data-lucide="${isBox ? 'package' : 'map-pin'}" class="w-10 h-10"></i></div>`}
+        </div>
+        <div class="p-4 flex-1 min-w-0">
+          <div class="flex justify-between items-start gap-3">
+            <div class="flex-1 min-w-0">
+              <h3 class="font-bold text-slate-800 break-words">${escapeHTML(item.name)}</h3>
+              <p class="text-slate-500 text-sm mt-1 whitespace-pre-wrap break-words">${escapeHTML(item.description || '')}</p>
+              <div class="mt-3 flex flex-wrap gap-2">
+                ${isBox ? `<span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>${escapeHTML(location ? location.name : 'Local indefinido')}</span>` : `<button onclick="showBoxesInLocation('${item.id}')" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="package" class="w-3 h-3"></i>${childCount} caixa${childCount === 1 ? '' : 's'}</button>`}
+              </div>
+            </div>
+            <div class="flex gap-1 shrink-0">
+              <button onclick="duplicateItem('${item.id}')" class="text-slate-400 hover:text-emerald-600 p-2" title="Duplicar"><i data-lucide="copy" class="w-4 h-4"></i></button>
+              <button onclick="editItem('${item.id}')" class="text-slate-400 hover:text-blue-500 p-2" title="Editar"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+              <button onclick="deleteItem('${item.id}')" class="text-slate-400 hover:text-red-500 p-2" title="Apagar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+        </div>
+      </article>`;
+    }
+
+    function showBoxesInLocation(locationId) {
+      switchTab('boxes');
+      $('locationFilter').value = locationId;
+      render();
+    }
+
+    function openModal(editingItem = null) {
+      $('itemForm').reset();
+      $('editId').value = editingItem ? editingItem.id : '';
+      currentPhoto = editingItem ? editingItem.photo : null;
+      updatePhotoPreview();
+      $('itemLocation').innerHTML = '<option value="">Sem local definido</option>' + appData.locations.map(l => `<option value="${escapeHTML(l.id)}">${escapeHTML(l.name)}</option>`).join('');
+      $('modalTitle').innerText = editingItem ? 'Editar registo' : (appData.activeTab === 'boxes' ? 'Nova caixa' : 'Novo local');
+
+      if (editingItem) {
+        $('itemName').value = editingItem.name || '';
+        $('itemDesc').value = editingItem.description || '';
+        $('itemLocation').value = editingItem.parentId || '';
+      }
+
+      $('locationSelectGroup').style.display = appData.activeTab === 'boxes' ? 'block' : 'none';
+      $('modal').classList.remove('hidden');
+      $('modal').classList.add('flex');
+      document.body.classList.add('modal-active');
+      setTimeout(() => $('itemName').focus(), 100);
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      $('modal').classList.add('hidden');
+      $('modal').classList.remove('flex');
+      document.body.classList.remove('modal-active');
+      $('photoInput').value = '';
+    }
+
+    function updatePhotoPreview() {
+      $('removePhotoBtn').classList.toggle('hidden', !currentPhoto);
+      if (currentPhoto) {
+        $('photoPreview').src = currentPhoto;
+        $('photoPreview').classList.remove('hidden');
+        $('photoPlaceholder').classList.add('hidden');
+      } else {
+        $('photoPreview').removeAttribute('src');
+        $('photoPreview').classList.add('hidden');
+        $('photoPlaceholder').classList.remove('hidden');
+      }
+    }
+
+    function handlePhoto(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => resizeImage(reader.result, 1280, 0.72).then(data => {
+        currentPhoto = data;
+        updatePhotoPreview();
+        showToast('Fotografia adicionada.');
+      });
+      reader.readAsDataURL(file);
+    }
+
+    function resizeImage(dataUrl, maxSize, quality) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          const ratio = Math.min(1, maxSize / Math.max(width, height));
+          width = Math.round(width * ratio); height = Math.round(height * ratio);
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = dataUrl;
+      });
+    }
+
+    function handleSave(e) {
+      e.preventDefault();
+      const id = $('editId').value;
+      const item = {
+        id: id || crypto.randomUUID(),
+        name: $('itemName').value.trim(),
+        description: $('itemDesc').value.trim(),
+        photo: currentPhoto,
+        createdAt: id ? (appData[appData.activeTab].find(i => i.id === id)?.createdAt || Date.now()) : Date.now()
+      };
+      if (appData.activeTab === 'boxes') item.parentId = $('itemLocation').value;
+
+      if (id) appData[appData.activeTab] = appData[appData.activeTab].map(i => i.id === id ? { ...i, ...item } : i);
+      else appData[appData.activeTab].unshift(item);
+
+      closeModal();
+      render();
+      showToast(id ? 'Registo atualizado.' : 'Registo criado.');
+    }
+
+    function editItem(id) { openModal(appData[appData.activeTab].find(i => i.id === id)); }
+
+    function duplicateItem(id) {
+      const original = appData[appData.activeTab].find(i => i.id === id);
+      if (!original) return;
+      appData[appData.activeTab].unshift({ ...original, id: crypto.randomUUID(), name: `${original.name} — cópia`, createdAt: Date.now() });
+      render();
+      showToast('Registo duplicado.');
+    }
+
+    function deleteItem(id) {
+      const item = appData[appData.activeTab].find(i => i.id === id);
+      if (!item) return;
+      const isLocation = appData.activeTab === 'locations';
+      const boxesInside = isLocation ? appData.boxes.filter(b => b.parentId === id).length : 0;
+      const msg = boxesInside ? `Apagar "${item.name}"? As ${boxesInside} caixas associadas ficam sem local definido.` : `Apagar "${item.name}"?`;
+      if (!confirm(msg)) return;
+      appData[appData.activeTab] = appData[appData.activeTab].filter(i => i.id !== id);
+      if (isLocation) appData.boxes = appData.boxes.map(b => b.parentId === id ? { ...b, parentId: '' } : b);
+      render();
+      showToast('Registo apagado.');
+    }
+
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const dl = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      dl.href = url;
+      dl.download = `backup_inventario_${date}.json`;
+      dl.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup exportado.');
+    }
+
+    function importJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = migrateData(JSON.parse(event.target.result));
+          if (!Array.isArray(data.boxes) || !Array.isArray(data.locations)) throw new Error();
+          appData = data;
+          render();
+          showToast('Backup importado.');
+        } catch { alert('Erro no ficheiro. Confirma se é um backup JSON válido.'); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    function resetData() {
+      if (!confirm('Repor a lista inicial? Os dados atuais serão substituídos. Faz primeiro um backup se precisares.')) return;
+      appData = structuredClone(initialData);
+      render();
+      showToast('Lista inicial reposta.');
+    }
+
+    let toastTimer;
+    function showToast(message) {
+      clearTimeout(toastTimer);
+      $('toast').textContent = message;
+      $('toast').classList.remove('hidden');
+      toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 2200);
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>

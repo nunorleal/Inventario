@@ -22,6 +22,18 @@
     .safe-bottom { padding-bottom: max(6rem, env(safe-area-inset-bottom)); }
     .glass { background: rgba(255,255,255,.86); backdrop-filter: blur(14px); }
     .card-enter { animation: cardIn .18s ease-out both; }
+    body.dark { background: #0f172a; color: #e2e8f0; color-scheme: dark; }
+    body.dark .glass { background: rgba(15,23,42,.86); border-color: #1e293b; }
+    body.dark .bg-white { background-color: #1e293b !important; }
+    body.dark .bg-slate-50, body.dark .bg-slate-100 { background-color: #0f172a !important; }
+    body.dark .bg-slate-200 { background-color: #334155 !important; }
+    body.dark .text-slate-900, body.dark .text-slate-800, body.dark .text-slate-700 { color: #e2e8f0 !important; }
+    body.dark .text-slate-600, body.dark .text-slate-500 { color: #cbd5e1 !important; }
+    body.dark .text-slate-400 { color: #94a3b8 !important; }
+    body.dark .border, body.dark .border-b, body.dark .border-t { border-color: #334155 !important; }
+    body.dark input, body.dark textarea, body.dark select { background-color: #1e293b !important; color: #e2e8f0 !important; }
+    body.dark input::placeholder, body.dark textarea::placeholder { color: #64748b !important; }
+    body.dark .shadow-sm, body.dark .shadow-lg, body.dark .shadow-2xl { box-shadow: 0 18px 40px rgba(0,0,0,.28) !important; }
     @keyframes cardIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     @media print {
       header, nav, #toolbar, #modal, #toast { display: none !important; }
@@ -37,10 +49,16 @@
   <header class="glass border-b sticky top-0 z-30 px-4 py-3 shadow-sm">
     <div class="max-w-2xl mx-auto flex justify-between items-center gap-3">
       <div class="flex items-center gap-2 text-blue-700 font-bold text-lg min-w-0">
-        <img src="inventario-icon.png" alt="" class="w-8 h-8 rounded-lg shrink-0 object-cover shadow-sm" />
+        <button id="appIconBtn" class="rounded-lg shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Alterar ícone da app" type="button">
+          <img id="appIcon" src="inventario-icon.png" alt="" class="w-8 h-8 rounded-lg object-cover shadow-sm" />
+        </button>
+        <input id="appIconInput" type="file" class="hidden" accept="image/*" />
         <span class="truncate">Inventário NL</span>
       </div>
       <div class="flex gap-2 shrink-0">
+        <button id="themeToggleBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Alternar modo escuro" type="button">
+          <i data-lucide="moon"></i>
+        </button>
         <button id="printBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Imprimir lista">
           <i data-lucide="printer"></i>
         </button>
@@ -214,6 +232,8 @@
 
     const initialData = {
       activeTab: 'locations',
+      appIcon: null,
+      darkMode: false,
       locations: [
         { id: 'loc1', name: 'Arrumações - Mudanças', description: 'Local principal', photo: null, createdAt: 1 },
         { id: 'loc2', name: 'Garagem', description: 'Ferramentas', photo: null, createdAt: 2 },
@@ -282,6 +302,8 @@
 
     function migrateData(data) {
       const migrated = { ...structuredClone(initialData), ...data };
+      migrated.appIcon = migrated.appIcon || null;
+      migrated.darkMode = Boolean(migrated.darkMode);
       migrated.locations = (migrated.locations || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, ...item }));
       migrated.boxes = (migrated.boxes || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, ...item }));
       migrated.activeTab = migrated.activeTab === 'locations' ? 'locations' : 'boxes';
@@ -291,6 +313,9 @@
     function bindEvents() {
       $('tabBoxes').onclick = () => switchTab('boxes');
       $('tabLocations').onclick = () => switchTab('locations');
+      $('appIconBtn').onclick = () => $('appIconInput').click();
+      $('appIconInput').onchange = handleAppIcon;
+      $('themeToggleBtn').onclick = toggleTheme;
       $('addBtn').onclick = () => openModal();
       $('addInlineBtn').onclick = () => openModal();
       $('closeModal').onclick = closeModal;
@@ -329,11 +354,36 @@
     }
 
     function render() {
+      renderTheme();
+      renderAppIcon();
       renderSummary();
       renderLocationFilter();
       renderList();
       saveData(true);
       lucide.createIcons();
+    }
+
+    function renderTheme() {
+      document.body.classList.toggle('dark', Boolean(appData.darkMode));
+      $('themeToggleBtn').innerHTML = `<i data-lucide="${appData.darkMode ? 'sun' : 'moon'}"></i>`;
+      $('themeToggleBtn').title = appData.darkMode ? 'Alternar modo claro' : 'Alternar modo escuro';
+    }
+
+    function toggleTheme() {
+      appData.darkMode = !appData.darkMode;
+      render();
+    }
+
+    function renderAppIcon() {
+      const icon = appData.appIcon || 'inventario-icon.png';
+      $('appIcon').src = icon;
+      updateIconLink('icon', icon);
+      updateIconLink('apple-touch-icon', icon);
+    }
+
+    function updateIconLink(rel, href) {
+      const link = document.querySelector(`link[rel="${rel}"]`);
+      if (link) link.href = href;
     }
 
     function saveData(silent = false) {
@@ -346,6 +396,24 @@
         }
         return false;
       }
+    }
+
+    function handleAppIcon(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => cropImageToSquare(reader.result, 1, 0, 0, 180, 0.72).then(data => {
+        const previousIcon = appData.appIcon;
+        appData.appIcon = data;
+        if (!saveData(false)) {
+          appData.appIcon = previousIcon;
+          return;
+        }
+        renderAppIcon();
+        showToast('Ícone da app atualizado.');
+      });
+      reader.readAsDataURL(file);
+      e.target.value = '';
     }
 
     function renderSummary() {
@@ -781,7 +849,7 @@
         showToast('Operação cancelada.');
         return;
       }
-      appData = { activeTab: 'locations', locations: [], boxes: [] };
+      appData = { activeTab: 'locations', appIcon: null, darkMode: false, locations: [], boxes: [] };
       $('searchInput').value = '';
       $('locationFilter').value = '';
       render();

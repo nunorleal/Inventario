@@ -34,11 +34,44 @@
     body.dark input, body.dark textarea, body.dark select { background-color: #1e293b !important; color: #e2e8f0 !important; }
     body.dark input::placeholder, body.dark textarea::placeholder { color: #64748b !important; }
     body.dark .shadow-sm, body.dark .shadow-lg, body.dark .shadow-2xl { box-shadow: 0 18px 40px rgba(0,0,0,.28) !important; }
+    .location-hero {
+      border: 1px solid rgba(37, 99, 235, .42);
+      box-shadow: 0 20px 45px rgba(37, 99, 235, .18);
+    }
+    .location-hero-bg {
+      opacity: .48;
+      filter: blur(2px) saturate(1.12);
+      transform: scale(1.04);
+    }
+    .location-hero-overlay {
+      background:
+        linear-gradient(90deg, rgba(15,23,42,.90) 0%, rgba(30,64,175,.78) 52%, rgba(37,99,235,.54) 100%),
+        radial-gradient(circle at 85% 20%, rgba(255,255,255,.30), transparent 34%);
+    }
+    .location-hero-title,
+    .location-hero-desc,
+    .location-hero-eyebrow { color: white !important; }
+    .location-hero-eyebrow,
+    .location-hero-desc { opacity: .82; }
+    .location-hero-badge { background: rgba(255,255,255,.92) !important; color: #1d4ed8 !important; }
+    body.dark .location-hero {
+      border-color: rgba(59, 130, 246, .70) !important;
+      box-shadow: 0 24px 70px rgba(37, 99, 235, .20) !important;
+    }
     @keyframes cardIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    #printView { display: none; }
     @media print {
-      header, nav, #toolbar, #modal, #toast { display: none !important; }
-      body { background: white !important; padding-bottom: 0 !important; }
-      main { max-width: none !important; }
+      header, nav, main, #modal, #locationDetailModal, #toast { display: none !important; }
+      #printView { display: block !important; }
+      body { background: white !important; color: #0f172a !important; padding-bottom: 0 !important; }
+      .print-page { padding: 16px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .print-title { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+      .print-meta { font-size: 12px; color: #64748b; margin-bottom: 18px; }
+      .print-node { border-left: 2px solid #cbd5e1; margin-left: 10px; padding: 0 0 10px 14px; break-inside: avoid; }
+      .print-node-title { font-size: 15px; font-weight: 800; margin-bottom: 3px; }
+      .print-node-path { font-size: 10px; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-bottom: 4px; }
+      .print-node-desc { white-space: pre-wrap; font-size: 12px; color: #334155; margin-bottom: 8px; }
+      .print-empty { font-size: 12px; color: #94a3b8; font-style: italic; }
       .print-break { break-inside: avoid; }
       .shadow-sm, .shadow-lg { box-shadow: none !important; }
     }
@@ -62,14 +95,17 @@
         <button id="printBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Imprimir lista">
           <i data-lucide="printer"></i>
         </button>
+        <button id="exportBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Exportar backup">
+          <i data-lucide="download"></i>
+        </button>
         <label class="p-2 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition text-slate-600" title="Importar JSON">
           <i data-lucide="upload"></i>
           <input type="file" id="importInput" class="hidden" accept=".json,application/json" />
         </label>
-        <button id="exportBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Exportar backup">
-          <i data-lucide="download"></i>
-        </button>
       </div>
+    </div>
+    <div class="max-w-2xl mx-auto mt-2 flex justify-end">
+      <div id="lastUpdateLine" class="text-[11px] font-semibold text-slate-400"></div>
     </div>
   </header>
 
@@ -98,6 +134,9 @@
       </div>
     </div>
 
+    <section id="locationHeader" class="hidden mb-4"></section>
+    <div id="breadcrumb" class="hidden mb-4 px-1"></div>
+
     <div class="flex justify-between items-center mb-4 px-1 gap-3">
       <span id="itemsCounter" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">A carregar...</span>
       <div class="flex items-center gap-2 shrink-0">
@@ -117,6 +156,8 @@
       <p class="text-sm">Experimenta mudar a pesquisa ou os filtros.</p>
     </div>
   </main>
+
+  <section id="printView"></section>
 
   <nav class="fixed bottom-0 left-0 right-0 glass border-t p-2 flex justify-center items-center z-40 max-w-2xl mx-auto shadow-2xl rounded-t-2xl">
     <button id="tabLocations" class="flex-1 flex flex-col items-center py-2 transition tab-active relative">
@@ -155,6 +196,17 @@
           <input id="photoInput" type="file" class="hidden" accept="image/*" capture="environment" />
         </div>
         <button id="removePhotoBtn" type="button" class="hidden -mt-2 text-xs font-bold text-red-500 hover:text-red-700">Remover fotografia</button>
+        <button id="reusePhotoBtn" type="button" class="hidden -mt-2 w-full rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-100 transition">
+          Usar foto existente
+        </button>
+
+        <div id="photoLibraryPanel" class="hidden space-y-3 rounded-xl border bg-slate-50 p-3">
+          <div class="flex items-center justify-between gap-3">
+            <div class="text-[10px] font-bold text-slate-400 uppercase">Escolher foto já carregada</div>
+            <button id="closePhotoLibraryBtn" type="button" class="text-xs font-bold text-slate-400 hover:text-slate-600">Fechar</button>
+          </div>
+          <div id="photoLibraryGrid" class="grid grid-cols-3 gap-2"></div>
+        </div>
 
         <div id="photoCropControls" class="hidden space-y-3 rounded-xl border bg-slate-50 p-3">
           <div class="text-[10px] font-bold text-slate-400 uppercase">Ajustar fotografia ao quadrado</div>
@@ -201,8 +253,11 @@
 
   <div id="locationDetailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
     <div class="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
-      <div class="p-4 border-b flex justify-between items-center bg-slate-50">
-        <span id="locationDetailTitle" class="font-bold text-slate-700">Conteúdo do local</span>
+      <div class="p-4 border-b flex justify-between items-start gap-3 bg-slate-50">
+        <div class="min-w-0">
+          <span id="locationDetailTitle" class="font-bold text-slate-700 block break-words">Conteúdo do local</span>
+          <div id="locationDetailUpdated" class="mt-1 text-[11px] font-bold uppercase text-slate-400"></div>
+        </div>
         <button id="closeLocationDetail" class="p-2 hover:bg-slate-200 rounded-full text-slate-400" type="button"><i data-lucide="x"></i></button>
       </div>
 
@@ -229,11 +284,16 @@
 
   <script>
     const STORAGE_KEY = 'inventory_html_v2_nuno';
+    const DB_NAME = 'inventario_nl_db';
+    const DB_STORE = 'state';
+    const DB_KEY = 'appData';
 
     const initialData = {
       activeTab: 'locations',
       appIcon: null,
       darkMode: false,
+      lastUpdatedAt: null,
+      lastExportedAt: null,
       locations: [
         { id: 'loc1', name: 'Arrumações - Mudanças', description: 'Local principal', photo: null, createdAt: 1 },
         { id: 'loc2', name: 'Garagem', description: 'Ferramentas', photo: null, createdAt: 2 },
@@ -283,15 +343,17 @@
     let cropSource = null;
     let cropNaturalWidth = 1;
     let cropNaturalHeight = 1;
+    let backupReminderTimer = null;
+    let backupReminderShownFor = null;
 
     const $ = (id) => document.getElementById(id);
     const escapeHTML = (str = '') => String(str).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[c]));
     const normalize = (str = '') => String(str).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    function init() {
+    async function init() {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('inventory_html_final');
-        if (saved) appData = migrateData(JSON.parse(saved));
+        const saved = await loadSavedData();
+        if (saved) appData = migrateData(saved);
       } catch { showToast('Não consegui ler os dados guardados. Usei a lista inicial.'); }
 
       appData.activeTab = 'locations';
@@ -300,12 +362,25 @@
       lucide.createIcons();
     }
 
+    async function loadSavedData() {
+      const localRaw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('inventory_html_final');
+      const localData = localRaw ? JSON.parse(localRaw) : null;
+      const indexedData = await readIndexedData();
+      if (!indexedData) return localData;
+      if (!localData) return indexedData;
+      const localTime = new Date(localData.lastUpdatedAt || 0).getTime();
+      const indexedTime = new Date(indexedData.lastUpdatedAt || 0).getTime();
+      return indexedTime >= localTime ? indexedData : localData;
+    }
+
     function migrateData(data) {
       const migrated = { ...structuredClone(initialData), ...data };
       migrated.appIcon = migrated.appIcon || null;
       migrated.darkMode = Boolean(migrated.darkMode);
-      migrated.locations = (migrated.locations || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, ...item }));
-      migrated.boxes = (migrated.boxes || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, ...item }));
+      migrated.lastUpdatedAt = migrated.lastUpdatedAt || null;
+      migrated.lastExportedAt = migrated.lastExportedAt || null;
+      migrated.locations = (migrated.locations || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, updatedAt: null, ...item }));
+      migrated.boxes = (migrated.boxes || []).map((item, idx) => ({ photo: null, parentId: '', description: '', createdAt: Date.now() + idx, updatedAt: null, ...item }));
       migrated.activeTab = migrated.activeTab === 'locations' ? 'locations' : 'boxes';
       return migrated;
     }
@@ -330,9 +405,11 @@
       $('sortSelect').onchange = render;
       $('exportBtn').onclick = exportJSON;
       $('importInput').onchange = importJSON;
-      $('printBtn').onclick = () => window.print();
+      $('printBtn').onclick = printInventory;
       $('resetDataBtn').onclick = resetData;
-      $('removePhotoBtn').onclick = () => { currentPhoto = null; cropSource = null; hideCropControls(); updatePhotoPreview(); };
+      $('removePhotoBtn').onclick = () => { currentPhoto = null; cropSource = null; hideCropControls(); hidePhotoLibrary(); updatePhotoPreview(); };
+      $('reusePhotoBtn').onclick = togglePhotoLibrary;
+      $('closePhotoLibraryBtn').onclick = hidePhotoLibrary;
       $('photoTrigger').onclick = () => $('photoInput').click();
       $('photoInput').onchange = handlePhoto;
       $('cropZoom').oninput = updateCropPreview;
@@ -356,11 +433,54 @@
     function render() {
       renderTheme();
       renderAppIcon();
+      renderLastUpdate();
       renderSummary();
       renderLocationFilter();
+      renderLocationHeader();
+      renderBreadcrumb();
       renderList();
-      saveData(true);
       lucide.createIcons();
+    }
+
+    function renderLastUpdate() {
+      if (!appData.lastUpdatedAt) {
+        $('lastUpdateLine').textContent = 'Sem alterações registadas';
+        $('lastUpdateLine').className = 'text-[11px] font-semibold text-slate-400';
+        scheduleBackupReminder();
+        return;
+      }
+      const needsExport = !appData.lastExportedAt || new Date(appData.lastExportedAt) < new Date(appData.lastUpdatedAt);
+      $('lastUpdateLine').textContent = `Último update: ${formatDateTime(appData.lastUpdatedAt)}${needsExport ? ' · backup recomendado' : ''}`;
+      $('lastUpdateLine').className = `text-[11px] font-semibold ${needsExport ? 'text-amber-600' : 'text-slate-400'}`;
+      scheduleBackupReminder();
+    }
+
+    function formatDateTime(value) {
+      return new Intl.DateTimeFormat('pt-PT', {
+        day: 'numeric',
+        month: 'long',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(value));
+    }
+
+    function markUpdated() {
+      appData.lastUpdatedAt = new Date().toISOString();
+      backupReminderShownFor = null;
+    }
+
+    function scheduleBackupReminder() {
+      clearTimeout(backupReminderTimer);
+      if (!appData.lastUpdatedAt) return;
+      if (appData.lastExportedAt && new Date(appData.lastExportedAt) >= new Date(appData.lastUpdatedAt)) return;
+      if (backupReminderShownFor === appData.lastUpdatedAt) return;
+      const elapsed = Date.now() - new Date(appData.lastUpdatedAt).getTime();
+      const wait = Math.max(0, 5 * 60 * 1000 - elapsed);
+      backupReminderTimer = setTimeout(() => {
+        backupReminderShownFor = appData.lastUpdatedAt;
+        showToast('Alterações por exportar. Faz um backup JSON.');
+        renderLastUpdate();
+      }, wait);
     }
 
     function renderTheme() {
@@ -369,8 +489,13 @@
       $('themeToggleBtn').title = appData.darkMode ? 'Alternar modo claro' : 'Alternar modo escuro';
     }
 
-    function toggleTheme() {
+    async function toggleTheme() {
+      const previousData = structuredClone(appData);
       appData.darkMode = !appData.darkMode;
+      markUpdated();
+      if (!(await saveData(false))) {
+        appData = previousData;
+      }
       render();
     }
 
@@ -386,30 +511,81 @@
       if (link) link.href = href;
     }
 
-    function saveData(silent = false) {
+    async function saveData(silent = false) {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
         return true;
       } catch {
-        if (!silent) {
-          alert('Não consegui guardar os dados no browser. Exporta um backup e tenta remover algumas fotografias para libertar espaço.');
+        try {
+          await writeIndexedData(appData);
+          try { localStorage.removeItem(STORAGE_KEY); } catch {}
+          if (!silent) showToast('Dados guardados em armazenamento alargado.');
+          return true;
+        } catch {
+          if (!silent) {
+            alert('Não consegui guardar os dados no browser. Exporta um backup e tenta remover algumas fotografias para libertar espaço.');
+          }
+          return false;
         }
-        return false;
       }
+    }
+
+    function openInventoryDb() {
+      return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) {
+          reject(new Error('IndexedDB indisponível'));
+          return;
+        }
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => {
+          request.result.createObjectStore(DB_STORE);
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function readIndexedData() {
+      try {
+        const db = await openInventoryDb();
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction(DB_STORE, 'readonly');
+          const request = tx.objectStore(DB_STORE).get(DB_KEY);
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => reject(request.error);
+          tx.oncomplete = () => db.close();
+        });
+      } catch {
+        return null;
+      }
+    }
+
+    async function writeIndexedData(data) {
+      const db = await openInventoryDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put(structuredClone(data), DB_KEY);
+        tx.oncomplete = () => { db.close(); resolve(true); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+        tx.onabort = () => { db.close(); reject(tx.error); };
+      });
     }
 
     function handleAppIcon(e) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => cropImageToSquare(reader.result, 1, 0, 0, 180, 0.72).then(data => {
+      reader.onload = () => cropImageToSquare(reader.result, 1, 0, 0, 180, 0.72).then(async data => {
         const previousIcon = appData.appIcon;
+        const previousUpdatedAt = appData.lastUpdatedAt;
         appData.appIcon = data;
-        if (!saveData(false)) {
+        markUpdated();
+        if (!(await saveData(false))) {
           appData.appIcon = previousIcon;
+          appData.lastUpdatedAt = previousUpdatedAt;
           return;
         }
-        renderAppIcon();
+        render();
         showToast('Ícone da app atualizado.');
       });
       reader.readAsDataURL(file);
@@ -420,11 +596,18 @@
       const contents = appData.boxes.length + appData.locations.filter(item => item.parentId).length;
       const locations = appData.locations.length;
       const photos = [...appData.boxes, ...appData.locations].filter(i => i.photo).length;
-      $('summary').innerHTML = statCard('package', contents, 'Conteúdos') + statCard('map-pin', locations, 'Locais') + statCard('image', photos, 'Fotos');
+      $('summary').innerHTML =
+        statCard('map-pin', locations, 'Locais', 'locations') +
+        statCard('package', contents, 'Conteúdos', 'boxes') +
+        statCard('image', photos, 'Fotos');
     }
 
-    function statCard(icon, value, label) {
-      return `<div class="bg-white rounded-2xl p-3 shadow-sm border text-center">
+    function statCard(icon, value, label, targetTab = null) {
+      const isActive = targetTab && appData.activeTab === targetTab;
+      const action = targetTab ? `onclick="switchTab('${targetTab}')"` : '';
+      const interactiveClass = targetTab ? 'cursor-pointer hover:border-blue-300 hover:shadow-md active:scale-[.98]' : '';
+      const activeClass = isActive ? 'ring-2 ring-blue-500 border-blue-300' : '';
+      return `<div ${action} class="bg-white rounded-2xl p-3 shadow-sm border text-center transition ${interactiveClass} ${activeClass}">
         <i data-lucide="${icon}" class="w-5 h-5 mx-auto text-blue-600 mb-1"></i>
         <div class="font-black text-lg">${value}</div>
         <div class="text-[10px] font-bold uppercase text-slate-400">${label}</div>
@@ -439,6 +622,168 @@
         .slice().sort((a,b) => a.name.localeCompare(b.name, 'pt'))
         .map(l => `<option value="${escapeHTML(l.id)}">${escapeHTML(l.name)}</option>`).join('') + '<option value="__none">Sem local definido</option>';
       $('locationFilter').value = selected;
+    }
+
+    function renderBreadcrumb() {
+      const search = $('searchInput').value.trim();
+      const locationId = $('locationFilter').value;
+      const shouldShow = appData.activeTab === 'boxes' && !search;
+      $('breadcrumb').classList.toggle('hidden', !shouldShow);
+      if (!shouldShow) return;
+
+      const path = locationId && locationId !== '__none' ? getLocationPath(locationId) : [];
+      const rootLabel = locationId === '__none' ? 'Sem local definido' : 'Todos os conteúdos';
+      const parts = [
+        `<button onclick="goToContentRoot()" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition"><i data-lucide="home" class="w-3 h-3"></i>${rootLabel}</button>`
+      ];
+
+      if (locationId && locationId !== '__none') {
+        parts[0] = `<button onclick="goToContentRoot()" class="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-blue-600 px-2 py-2 rounded-lg transition"><i data-lucide="home" class="w-3 h-3"></i>Conteúdos</button>`;
+        path.forEach((location, index) => {
+          const isLast = index === path.length - 1;
+          parts.push('<i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>');
+          parts.push(`<button onclick="goToLocation('${location.id}')" class="text-xs font-bold ${isLast ? 'text-blue-700 bg-blue-50' : 'text-slate-500 hover:text-blue-600'} px-3 py-2 rounded-lg transition">${escapeHTML(location.name)}</button>`);
+        });
+      }
+
+      $('breadcrumb').innerHTML = `<div class="flex items-center gap-1 overflow-x-auto whitespace-nowrap">${parts.join('')}</div>`;
+    }
+
+    function renderLocationHeader() {
+      const search = $('searchInput').value.trim();
+      const locationId = $('locationFilter').value;
+      const location = appData.activeTab === 'boxes' && !search && locationId && locationId !== '__none'
+        ? appData.locations.find(l => l.id === locationId)
+        : null;
+      $('locationHeader').classList.toggle('hidden', !location);
+      if (!location) return;
+
+      const childCount = appData.boxes.filter(item => item.parentId === location.id).length + appData.locations.filter(item => item.parentId === location.id).length;
+      const background = location.photo
+        ? `<div class="location-hero-bg absolute inset-0 bg-cover bg-center" style="background-image: url('${location.photo}')"></div><div class="location-hero-overlay absolute inset-0"></div>`
+        : '<div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-blue-600"></div><div class="absolute inset-0 bg-[radial-gradient(circle_at_85%_18%,rgba(255,255,255,.30),transparent_34%)]"></div>';
+      $('locationHeader').innerHTML = `<div onclick="openLocationDetail('${location.id}')" class="location-hero relative rounded-xl overflow-hidden flex cursor-pointer hover:border-blue-300 transition">
+        ${background}
+        <button onclick="event.stopPropagation(); editItem('${location.id}', 'location')" class="absolute right-3 top-3 z-20 rounded-lg bg-white/90 p-2 text-blue-700 shadow-sm hover:bg-white active:scale-95 transition" title="Editar este local" type="button">
+          <i data-lucide="edit-2" class="w-4 h-4"></i>
+        </button>
+        <div class="relative z-10 w-28 h-28 sm:w-40 sm:h-40 bg-slate-200 flex-shrink-0">
+          ${location.photo ? `<img src="${location.photo}" alt="${escapeHTML(location.name)}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-300"><i data-lucide="map-pin" class="w-10 h-10"></i></div>`}
+        </div>
+        <div class="relative z-10 p-3 sm:p-4 flex-1 min-w-0">
+          <div class="location-hero-eyebrow text-[10px] font-black uppercase tracking-wider mb-1">Dentro de</div>
+          <h2 class="location-hero-title font-black text-xl sm:text-2xl break-words">${escapeHTML(location.name)}</h2>
+          ${location.description ? `<p class="location-hero-desc text-sm mt-1 whitespace-pre-wrap break-words">${escapeHTML(formatPreviewText(location.description))}</p>` : '<p class="location-hero-desc text-sm italic mt-1">Sem descrição neste local.</p>'}
+          <div class="location-hero-badge mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-black shadow-sm">
+            <i data-lucide="package" class="w-3 h-3"></i>${childCount} conteúdo${childCount === 1 ? '' : 's'}
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function getLocationPath(locationId) {
+      const path = [];
+      const seen = new Set();
+      let current = appData.locations.find(l => l.id === locationId);
+      while (current && !seen.has(current.id)) {
+        seen.add(current.id);
+        path.unshift(current);
+        current = appData.locations.find(l => l.id === current.parentId);
+      }
+      return path;
+    }
+
+    function getDescendantLocationIds(locationId) {
+      const descendants = new Set();
+      const visit = (parentId) => {
+        appData.locations
+          .filter(location => location.parentId === parentId)
+          .forEach(location => {
+            if (descendants.has(location.id)) return;
+            descendants.add(location.id);
+            visit(location.id);
+          });
+      };
+      visit(locationId);
+      return descendants;
+    }
+
+    function goToContentRoot() {
+      switchTab('boxes');
+      $('locationFilter').value = '';
+      render();
+    }
+
+    function goToLocation(locationId) {
+      switchTab('boxes');
+      $('locationFilter').value = locationId;
+      render();
+    }
+
+    function printInventory() {
+      renderPrintView();
+      window.print();
+    }
+
+    function renderPrintView() {
+      const printedAt = new Intl.DateTimeFormat('pt-PT', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date());
+      const rootLocations = appData.locations
+        .filter(location => !location.parentId)
+        .sort((a,b) => a.name.localeCompare(b.name, 'pt'));
+      const looseBoxes = appData.boxes
+        .filter(box => !box.parentId)
+        .sort((a,b) => a.name.localeCompare(b.name, 'pt'));
+
+      $('printView').innerHTML = `<div class="print-page">
+        <div class="print-title">Inventário NL</div>
+        <div class="print-meta">Relatório completo gerado em ${escapeHTML(printedAt)}</div>
+      ${rootLocations.map(location => renderPrintLocation(location, [], new Set())).join('')}
+        ${looseBoxes.length ? `<div class="print-node">
+          <div class="print-node-path">Sem local definido</div>
+          ${looseBoxes.map(box => renderPrintBox(box, ['Sem local definido'])).join('')}
+        </div>` : ''}
+      </div>`;
+    }
+
+    function renderPrintLocation(location, ancestors, seen = new Set()) {
+      if (seen.has(location.id)) {
+        return `<div class="print-node">
+          <div class="print-node-path">${escapeHTML([...ancestors, location.name].join(' > '))}</div>
+          <div class="print-empty">Hierarquia circular detectada neste local.</div>
+        </div>`;
+      }
+      const nextSeen = new Set(seen);
+      nextSeen.add(location.id);
+      const path = [...ancestors, location.name];
+      const childLocations = appData.locations
+        .filter(item => item.parentId === location.id)
+        .sort((a,b) => a.name.localeCompare(b.name, 'pt'));
+      const childBoxes = appData.boxes
+        .filter(item => item.parentId === location.id)
+        .sort((a,b) => a.name.localeCompare(b.name, 'pt'));
+
+      return `<div class="print-node">
+        <div class="print-node-path">${escapeHTML(path.join(' > '))}</div>
+        <div class="print-node-title">${escapeHTML(location.name)}</div>
+        ${location.description ? `<div class="print-node-desc">${escapeHTML(location.description)}</div>` : ''}
+        ${childLocations.map(child => renderPrintLocation(child, path, nextSeen)).join('')}
+        ${childBoxes.map(box => renderPrintBox(box, path)).join('')}
+        ${!childLocations.length && !childBoxes.length && !location.description ? '<div class="print-empty">Sem conteúdos registados.</div>' : ''}
+      </div>`;
+    }
+
+    function renderPrintBox(box, ancestors) {
+      return `<div class="print-node">
+        <div class="print-node-path">${escapeHTML(ancestors.join(' > '))}</div>
+        <div class="print-node-title">${escapeHTML(box.name)}</div>
+        ${box.description ? `<div class="print-node-desc">${escapeHTML(box.description)}</div>` : '<div class="print-empty">Sem descrição.</div>'}
+      </div>`;
     }
 
     function getFilteredList() {
@@ -470,7 +815,7 @@
 
       list.sort((a,b) => {
         if (sort === 'nameDesc') return b.item.name.localeCompare(a.item.name, 'pt');
-        if (sort === 'recent') return (b.item.createdAt || 0) - (a.item.createdAt || 0);
+        if (sort === 'recent') return getItemSortTime(b.item) - getItemSortTime(a.item);
         if (sort === 'location') {
           const la = appData.locations.find(l => l.id === a.item.parentId)?.name || '';
           const lb = appData.locations.find(l => l.id === b.item.parentId)?.name || '';
@@ -480,6 +825,12 @@
       });
 
       return list;
+    }
+
+    function getItemSortTime(item) {
+      const updated = item.updatedAt ? new Date(item.updatedAt).getTime() : 0;
+      const created = item.createdAt ? new Date(item.createdAt).getTime() : 0;
+      return updated || created || 0;
     }
 
     function renderList() {
@@ -507,6 +858,7 @@
       const location = appData.locations.find(l => l.id === item.parentId);
       const childCount = isBox ? 0 : appData.boxes.filter(b => b.parentId === item.id).length + appData.locations.filter(l => l.parentId === item.id).length;
       const description = escapeHTML(formatPreviewText(item.description || ''));
+      const updatedLabel = formatItemUpdatedAt(item);
       const locationContents = description
         ? `<div class="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
             <div class="text-[10px] font-bold uppercase text-slate-400 mb-1">Conteúdo neste local</div>
@@ -521,6 +873,7 @@
           <div class="flex justify-between items-start gap-3">
             <div class="flex-1 min-w-0">
               <h3 class="font-bold text-slate-800 break-words">${escapeHTML(item.name)}</h3>
+              ${updatedLabel ? `<div class="mt-0.5 text-[10px] font-bold uppercase text-slate-400 inline-flex items-center gap-1"><i data-lucide="clock-3" class="w-3 h-3"></i>${escapeHTML(updatedLabel)}</div>` : ''}
               ${isBox ? `<p class="text-slate-500 text-sm mt-1 whitespace-pre-wrap break-words">${description}</p>` : locationContents}
               <div class="mt-3 flex flex-wrap gap-2">
                 ${isBox ? `<span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>${escapeHTML(location ? location.name : 'Local indefinido')}</span>` : `<span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-flex items-center gap-1"><i data-lucide="package" class="w-3 h-3"></i>${childCount} conteúdo${childCount === 1 ? '' : 's'}</span>`}
@@ -547,11 +900,32 @@
       return `${lines[0]}\n${lines[1]}\n${lines[2]}...`;
     }
 
+    function formatItemUpdatedAt(item) {
+      const createdAt = Number(item.createdAt);
+      const rawDate = item.updatedAt || (createdAt > 1000000000000 ? createdAt : null);
+      if (!rawDate) return '';
+      const date = new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return '';
+      return `Última atualização: ${new Intl.DateTimeFormat('pt-PT', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date)}`;
+    }
+
+    function renderDetailUpdated(item) {
+      const label = formatItemUpdatedAt(item);
+      $('locationDetailUpdated').textContent = label || 'Sem data de atualização registada';
+    }
+
     function openItemPreview(itemId) {
       const item = appData.boxes.find(box => box.id === itemId);
       if (!item) return;
       const location = appData.locations.find(l => l.id === item.parentId);
       $('locationDetailTitle').innerText = item.name;
+      renderDetailUpdated(item);
       $('locationDetailContent').innerHTML = item.description
         ? escapeHTML(item.description)
         : '<span class="text-slate-400 italic">Sem conteúdo descrito.</span>';
@@ -570,19 +944,26 @@
       const location = appData.locations.find(l => l.id === locationId);
       if (!location) return;
       const boxes = appData.boxes.filter(b => b.parentId === locationId).sort((a,b) => a.name.localeCompare(b.name, 'pt'));
+      const locations = appData.locations.filter(l => l.parentId === locationId).sort((a,b) => a.name.localeCompare(b.name, 'pt'));
+      const contents = [
+        ...locations.map(item => ({ type: 'location', item })),
+        ...boxes.map(item => ({ type: 'box', item }))
+      ].sort((a,b) => a.item.name.localeCompare(b.item.name, 'pt'));
       $('locationDetailTitle').innerText = location.name;
+      renderDetailUpdated(location);
       $('locationDetailContent').innerHTML = location.description
         ? escapeHTML(location.description)
         : '<span class="text-slate-400 italic">Sem conteúdo descrito diretamente neste local.</span>';
-      $('locationDetailBoxesTitle').innerText = `${boxes.length} caixa${boxes.length === 1 ? '' : 's'} neste local`;
-      $('locationDetailBoxesBtn').classList.toggle('hidden', boxes.length === 0);
+      $('locationDetailBoxesTitle').innerText = `${contents.length} conteúdo${contents.length === 1 ? '' : 's'} neste local`;
+      $('locationDetailBoxesBtn').classList.toggle('hidden', contents.length === 0);
       $('locationDetailBoxesBtn').onclick = () => showBoxesInLocation(locationId);
-      $('locationDetailBoxes').innerHTML = boxes.length ? boxes.map(box => `
+      $('locationDetailBoxes').innerHTML = contents.length ? contents.map(entry => `
         <div class="rounded-xl border bg-white p-3">
-          <div class="font-bold text-sm text-slate-800">${escapeHTML(box.name)}</div>
-          <div class="text-sm text-slate-500 mt-1 whitespace-pre-wrap break-words">${escapeHTML(box.description || '')}</div>
+          <div class="text-[10px] font-bold uppercase text-slate-400 mb-1">${entry.type === 'location' ? 'Local' : 'Item'}</div>
+          <div class="font-bold text-sm text-slate-800">${escapeHTML(entry.item.name)}</div>
+          <div class="text-sm text-slate-500 mt-1 whitespace-pre-wrap break-words">${escapeHTML(entry.item.description || '')}</div>
         </div>
-      `).join('') : '<div class="rounded-xl bg-slate-50 p-3 text-sm text-slate-400 italic">Não há caixas associadas a este local.</div>';
+      `).join('') : '<div class="rounded-xl bg-slate-50 p-3 text-sm text-slate-400 italic">Não há conteúdos associados a este local.</div>';
       $('locationDetailModal').classList.remove('hidden');
       $('locationDetailModal').classList.add('flex');
       document.body.classList.add('modal-active');
@@ -611,9 +992,14 @@
       currentPhoto = editingItem ? editingItem.photo : null;
       cropSource = null;
       hideCropControls();
+      hidePhotoLibrary();
       updatePhotoPreview();
+      renderPhotoLibrary();
+      const blockedLocationIds = editingItem && currentFormType === 'location'
+        ? getDescendantLocationIds(editingItem.id)
+        : new Set();
       const locationOptions = appData.locations
-        .filter(l => !editingItem || l.id !== editingItem.id)
+        .filter(l => !editingItem || (l.id !== editingItem.id && !blockedLocationIds.has(l.id)))
         .map(l => `<option value="${escapeHTML(l.id)}">${escapeHTML(l.name)}</option>`)
         .join('');
       $('itemLocation').innerHTML = `<option value="">${isBoxForm ? 'Sem local definido' : 'Local principal'}</option>` + locationOptions;
@@ -647,6 +1033,7 @@
       $('modal').classList.remove('flex');
       document.body.classList.remove('modal-active');
       $('photoInput').value = '';
+      hidePhotoLibrary();
     }
 
     function updatePhotoPreview() {
@@ -660,6 +1047,56 @@
         $('photoPreview').classList.add('hidden');
         $('photoPlaceholder').classList.remove('hidden');
       }
+    }
+
+    function getPhotoLibrary() {
+      const seen = new Set();
+      return [
+        ...appData.locations.map(item => ({ item, type: 'Local' })),
+        ...appData.boxes.map(item => ({ item, type: 'Conteúdo' }))
+      ]
+        .filter(entry => entry.item.photo)
+        .filter(entry => {
+          if (seen.has(entry.item.photo)) return false;
+          seen.add(entry.item.photo);
+          return true;
+        })
+        .sort((a,b) => a.item.name.localeCompare(b.item.name, 'pt'));
+    }
+
+    function renderPhotoLibrary() {
+      const photos = getPhotoLibrary();
+      $('reusePhotoBtn').classList.toggle('hidden', photos.length === 0);
+      $('photoLibraryGrid').innerHTML = photos.map((entry, index) => `
+        <button type="button" onclick="selectExistingPhoto(${index})" class="group overflow-hidden rounded-lg bg-white text-left ring-1 ring-slate-200 hover:ring-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          <img src="${entry.item.photo}" alt="${escapeHTML(entry.item.name)}" class="aspect-square w-full object-cover" />
+          <div class="p-2">
+            <div class="truncate text-[10px] font-black uppercase text-slate-400">${entry.type}</div>
+            <div class="truncate text-xs font-bold text-slate-700">${escapeHTML(entry.item.name)}</div>
+          </div>
+        </button>
+      `).join('');
+    }
+
+    function togglePhotoLibrary() {
+      hideCropControls();
+      renderPhotoLibrary();
+      $('photoLibraryPanel').classList.toggle('hidden');
+    }
+
+    function hidePhotoLibrary() {
+      $('photoLibraryPanel').classList.add('hidden');
+    }
+
+    function selectExistingPhoto(index) {
+      const photo = getPhotoLibrary()[index];
+      if (!photo) return;
+      currentPhoto = photo.item.photo;
+      cropSource = null;
+      hideCropControls();
+      hidePhotoLibrary();
+      updatePhotoPreview();
+      showToast('Fotografia existente aplicada.');
     }
 
     function handlePhoto(e) {
@@ -741,7 +1178,7 @@
       return canvas.toDataURL('image/jpeg', quality);
     }
 
-    function handleSave(e) {
+    async function handleSave(e) {
       e.preventDefault();
       const id = $('editId').value;
       const collection = currentFormType === 'location' ? 'locations' : 'boxes';
@@ -752,13 +1189,28 @@
         description: $('itemDesc').value.trim(),
         photo: currentPhoto,
         parentId: $('itemLocation').value,
-        createdAt: id ? (appData[collection].find(i => i.id === id)?.createdAt || Date.now()) : Date.now()
+        createdAt: id ? (appData[collection].find(i => i.id === id)?.createdAt || Date.now()) : Date.now(),
+        updatedAt: new Date().toISOString()
       };
+
+      if (!item.name) {
+        alert('Escreve um nome antes de guardar.');
+        return;
+      }
+
+      if (currentFormType === 'location' && id) {
+        const descendants = getDescendantLocationIds(id);
+        if (item.parentId === id || descendants.has(item.parentId)) {
+          alert('Este local não pode ficar dentro de si próprio nem dentro de um local que já está dentro dele.');
+          return;
+        }
+      }
 
       if (id) appData[collection] = appData[collection].map(i => i.id === id ? { ...i, ...item } : i);
       else appData[collection].unshift(item);
+      markUpdated();
 
-      if (!saveData(false)) {
+      if (!(await saveData(false))) {
         appData = previousData;
         return;
       }
@@ -774,17 +1226,24 @@
       openModal(collection.find(i => i.id === id), itemType);
     }
 
-    function duplicateItem(id, type = null) {
+    async function duplicateItem(id, type = null) {
       const itemType = type || (appData.locations.some(i => i.id === id) ? 'location' : 'box');
       const collectionName = itemType === 'location' ? 'locations' : 'boxes';
       const original = appData[collectionName].find(i => i.id === id);
       if (!original) return;
-      appData[collectionName].unshift({ ...original, id: crypto.randomUUID(), name: `${original.name} — cópia`, createdAt: Date.now() });
+      const previousData = structuredClone(appData);
+      appData[collectionName].unshift({ ...original, id: crypto.randomUUID(), name: `${original.name} — cópia`, createdAt: Date.now(), updatedAt: new Date().toISOString() });
+      markUpdated();
+      if (!(await saveData(false))) {
+        appData = previousData;
+        render();
+        return;
+      }
       render();
       showToast('Registo duplicado.');
     }
 
-    function deleteItem(id, type = null) {
+    async function deleteItem(id, type = null) {
       const itemType = type || (appData.locations.some(i => i.id === id) ? 'location' : 'box');
       const collectionName = itemType === 'location' ? 'locations' : 'boxes';
       const item = appData[collectionName].find(i => i.id === id);
@@ -795,16 +1254,25 @@
       const totalInside = boxesInside + locationsInside;
       const msg = totalInside ? `Apagar o local "${item.name}"? Os ${totalInside} conteúdos associados NÃO serão apagados; ficam apenas sem local definido.` : `Apagar "${item.name}"?`;
       if (!confirm(msg)) return;
+      const previousData = structuredClone(appData);
       appData[collectionName] = appData[collectionName].filter(i => i.id !== id);
       if (isLocation) {
         appData.boxes = appData.boxes.map(b => b.parentId === id ? { ...b, parentId: '' } : b);
         appData.locations = appData.locations.map(l => l.parentId === id ? { ...l, parentId: '' } : l);
       }
+      markUpdated();
+      if (!(await saveData(false))) {
+        appData = previousData;
+        render();
+        return;
+      }
       render();
       showToast('Registo apagado.');
     }
 
-    function exportJSON() {
+    async function exportJSON() {
+      appData.lastExportedAt = new Date().toISOString();
+      await saveData(true);
       const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const dl = document.createElement('a');
@@ -821,6 +1289,7 @@
       dl.download = `Inventario_NL_${stamp}.json`;
       dl.click();
       URL.revokeObjectURL(url);
+      render();
       showToast('Backup exportado.');
     }
 
@@ -828,11 +1297,18 @@
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
+        const previousData = structuredClone(appData);
         try {
           const data = migrateData(JSON.parse(event.target.result));
           if (!Array.isArray(data.boxes) || !Array.isArray(data.locations)) throw new Error();
           appData = data;
+          markUpdated();
+          if (!(await saveData(false))) {
+            appData = previousData;
+            render();
+            return;
+          }
           render();
           showToast('Backup importado.');
         } catch { alert('Erro no ficheiro. Confirma se é um backup JSON válido.'); }
@@ -841,7 +1317,7 @@
       e.target.value = '';
     }
 
-    function resetData() {
+    async function resetData() {
       const total = appData.boxes.length + appData.locations.length;
       if (!confirm(`Apagar todos os ${total} registos? Esta ação remove locais, conteúdos e fotos guardadas. Exporta um backup antes se precisares.`)) return;
       const typed = prompt('Para confirmar, escreve APAGAR TUDO em maiúsculas.');
@@ -849,9 +1325,15 @@
         showToast('Operação cancelada.');
         return;
       }
-      appData = { activeTab: 'locations', appIcon: null, darkMode: false, locations: [], boxes: [] };
+      const previousData = structuredClone(appData);
+      appData = { activeTab: 'locations', appIcon: null, darkMode: false, lastUpdatedAt: new Date().toISOString(), lastExportedAt: null, locations: [], boxes: [] };
       $('searchInput').value = '';
       $('locationFilter').value = '';
+      if (!(await saveData(false))) {
+        appData = previousData;
+        render();
+        return;
+      }
       render();
       showToast('Inventário apagado.');
     }

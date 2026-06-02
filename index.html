@@ -423,6 +423,7 @@
     function switchTab(tab) {
       appData.activeTab = tab;
       $('locationFilter').value = '';
+      $('searchInput').value = '';
       $('tabBoxes').className = `flex-1 flex flex-col items-center py-2 transition relative ${tab === 'boxes' ? 'tab-active' : 'text-slate-400'}`;
       $('tabLocations').className = `flex-1 flex flex-col items-center py-2 transition relative ${tab === 'locations' ? 'tab-active' : 'text-slate-400'}`;
       $('tabBoxes').querySelector('.tab-line').classList.toggle('scale-x-0', tab !== 'boxes');

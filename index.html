@@ -187,17 +187,30 @@
       <form id="itemForm" class="p-5 space-y-4 overflow-y-auto">
         <input type="hidden" id="editId" />
 
-        <div id="photoTrigger" class="w-full max-w-64 mx-auto aspect-square bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group hover:border-blue-400 transition">
+        <div id="photoTrigger" class="w-full max-w-64 mx-auto aspect-square bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center relative overflow-hidden">
           <img id="photoPreview" alt="Pré-visualização" class="hidden w-full h-full object-cover" />
           <div id="photoPlaceholder" class="flex flex-col items-center">
             <i data-lucide="camera" class="text-slate-400 mb-1"></i>
-            <span class="text-xs text-slate-500 font-medium">Adicionar foto</span>
+            <span class="text-xs text-slate-500 font-medium">Escolher foto</span>
           </div>
-          <input id="photoInput" type="file" class="hidden" accept="image/*" capture="environment" />
+          <input id="photoLibraryInput" type="file" class="hidden" accept="image/*" />
+          <input id="photoInput" type="file" class="hidden" accept="image/*" />
+          <input id="cameraInput" type="file" class="hidden" accept="image/*" capture="environment" />
+        </div>
+        <div class="grid grid-cols-3 gap-2 -mt-2">
+          <button id="photoLibraryBtn" type="button" class="rounded-lg bg-blue-50 px-2 py-2 text-[11px] font-bold text-blue-600 hover:bg-blue-100 transition">
+            Biblioteca
+          </button>
+          <button id="photoFilesBtn" type="button" class="rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-200 transition">
+            Ficheiros
+          </button>
+          <button id="cameraBtn" type="button" class="rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-200 transition">
+            Câmara
+          </button>
         </div>
         <button id="removePhotoBtn" type="button" class="hidden -mt-2 text-xs font-bold text-red-500 hover:text-red-700">Remover fotografia</button>
         <button id="reusePhotoBtn" type="button" class="hidden -mt-2 w-full rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-100 transition">
-          Usar foto existente
+          Usar foto já guardada na app
         </button>
 
         <div id="photoLibraryPanel" class="hidden space-y-3 rounded-xl border bg-slate-50 p-3">
@@ -410,13 +423,18 @@
       $('removePhotoBtn').onclick = () => { currentPhoto = null; cropSource = null; hideCropControls(); hidePhotoLibrary(); updatePhotoPreview(); };
       $('reusePhotoBtn').onclick = togglePhotoLibrary;
       $('closePhotoLibraryBtn').onclick = hidePhotoLibrary;
-      $('photoTrigger').onclick = () => $('photoInput').click();
+      $('photoLibraryBtn').onclick = () => $('photoLibraryInput').click();
+      $('photoFilesBtn').onclick = () => $('photoInput').click();
+      $('cameraBtn').onclick = () => $('cameraInput').click();
+      $('photoTrigger').onclick = () => $('photoLibraryInput').click();
+      $('photoLibraryInput').onchange = handlePhoto;
       $('photoInput').onchange = handlePhoto;
+      $('cameraInput').onchange = handlePhoto;
       $('cropZoom').oninput = updateCropPreview;
       $('cropX').oninput = updateCropPreview;
       $('cropY').oninput = updateCropPreview;
       $('applyCropBtn').onclick = applySquareCrop;
-      $('cancelCropBtn').onclick = () => { hideCropControls(); $('photoInput').value = ''; };
+      $('cancelCropBtn').onclick = () => { hideCropControls(); clearPhotoInputs(); };
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); closeLocationDetail(); } });
     }
 
@@ -1033,7 +1051,7 @@
       $('modal').classList.add('hidden');
       $('modal').classList.remove('flex');
       document.body.classList.remove('modal-active');
-      $('photoInput').value = '';
+      clearPhotoInputs();
       hidePhotoLibrary();
     }
 
@@ -1103,9 +1121,25 @@
     function handlePhoto(e) {
       const file = e.target.files[0];
       if (!file) return;
+      if (!isImageFile(file)) {
+        alert('Escolhe um ficheiro de imagem.');
+        clearPhotoInputs();
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => openCropControls(reader.result);
       reader.readAsDataURL(file);
+    }
+
+    function isImageFile(file) {
+      if (file.type && file.type.startsWith('image/')) return true;
+      return /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(file.name || '');
+    }
+
+    function clearPhotoInputs() {
+      $('photoLibraryInput').value = '';
+      $('photoInput').value = '';
+      $('cameraInput').value = '';
     }
 
     function openCropControls(dataUrl) {
@@ -1145,7 +1179,7 @@
         currentPhoto = data;
         hideCropControls();
         updatePhotoPreview();
-        $('photoInput').value = '';
+        clearPhotoInputs();
         showToast('Fotografia ajustada e comprimida.');
       });
     }

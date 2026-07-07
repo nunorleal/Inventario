@@ -87,6 +87,7 @@
         </button>
         <input id="appIconInput" type="file" class="hidden" accept="image/*" />
         <span class="truncate">Inventário NL</span>
+        <span class="text-[10px] font-bold text-slate-400">v1.9</span>
       </div>
       <div class="flex gap-2 shrink-0">
         <button id="themeToggleBtn" class="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition text-slate-600" title="Alternar modo escuro" type="button">
@@ -187,26 +188,13 @@
       <form id="itemForm" class="p-5 space-y-4 overflow-y-auto">
         <input type="hidden" id="editId" />
 
-        <div id="photoTrigger" class="w-full max-w-64 mx-auto aspect-square bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center relative overflow-hidden">
+        <div id="photoTrigger" class="w-full max-w-64 mx-auto aspect-square bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden group hover:border-blue-400 transition">
           <img id="photoPreview" alt="Pré-visualização" class="hidden w-full h-full object-cover" />
           <div id="photoPlaceholder" class="flex flex-col items-center">
             <i data-lucide="camera" class="text-slate-400 mb-1"></i>
-            <span class="text-xs text-slate-500 font-medium">Escolher foto</span>
+            <span class="text-xs text-slate-500 font-medium">Adicionar foto</span>
           </div>
-          <input id="photoLibraryInput" type="file" class="hidden" accept="image/*" />
           <input id="photoInput" type="file" class="hidden" accept="image/*" />
-          <input id="cameraInput" type="file" class="hidden" accept="image/*" capture="environment" />
-        </div>
-        <div class="grid grid-cols-3 gap-2 -mt-2">
-          <button id="photoLibraryBtn" type="button" class="rounded-lg bg-blue-50 px-2 py-2 text-[11px] font-bold text-blue-600 hover:bg-blue-100 transition">
-            Biblioteca
-          </button>
-          <button id="photoFilesBtn" type="button" class="rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-200 transition">
-            Ficheiros
-          </button>
-          <button id="cameraBtn" type="button" class="rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-200 transition">
-            Câmara
-          </button>
         </div>
         <button id="removePhotoBtn" type="button" class="hidden -mt-2 text-xs font-bold text-red-500 hover:text-red-700">Remover fotografia</button>
         <button id="reusePhotoBtn" type="button" class="hidden -mt-2 w-full rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-100 transition">
@@ -223,7 +211,7 @@
 
         <div id="photoCropControls" class="hidden space-y-3 rounded-xl border bg-slate-50 p-3">
           <div class="text-[10px] font-bold text-slate-400 uppercase">Ajustar fotografia ao quadrado</div>
-          <div class="mx-auto aspect-square w-full max-w-64 overflow-hidden rounded-xl bg-slate-200 relative">
+          <div id="cropTouchArea" class="mx-auto aspect-square w-full max-w-64 overflow-hidden rounded-xl bg-slate-200 relative touch-none cursor-move">
             <img id="cropImage" alt="Imagem para recortar" class="absolute left-1/2 top-1/2 max-w-none select-none pointer-events-none" />
           </div>
           <div class="space-y-2">
@@ -356,6 +344,7 @@
     let cropSource = null;
     let cropNaturalWidth = 1;
     let cropNaturalHeight = 1;
+    let cropGesture = null;
     let backupReminderTimer = null;
     let backupReminderShownFor = null;
 
@@ -423,16 +412,19 @@
       $('removePhotoBtn').onclick = () => { currentPhoto = null; cropSource = null; hideCropControls(); hidePhotoLibrary(); updatePhotoPreview(); };
       $('reusePhotoBtn').onclick = togglePhotoLibrary;
       $('closePhotoLibraryBtn').onclick = hidePhotoLibrary;
-      $('photoLibraryBtn').onclick = () => $('photoLibraryInput').click();
-      $('photoFilesBtn').onclick = () => $('photoInput').click();
-      $('cameraBtn').onclick = () => $('cameraInput').click();
-      $('photoTrigger').onclick = () => $('photoLibraryInput').click();
-      $('photoLibraryInput').onchange = handlePhoto;
+      $('photoTrigger').onclick = handlePhotoTrigger;
       $('photoInput').onchange = handlePhoto;
-      $('cameraInput').onchange = handlePhoto;
       $('cropZoom').oninput = updateCropPreview;
       $('cropX').oninput = updateCropPreview;
       $('cropY').oninput = updateCropPreview;
+      $('cropTouchArea').addEventListener('pointerdown', startCropPointer);
+      $('cropTouchArea').addEventListener('pointermove', moveCropPointer);
+      $('cropTouchArea').addEventListener('pointerup', endCropPointer);
+      $('cropTouchArea').addEventListener('pointercancel', endCropPointer);
+      $('cropTouchArea').addEventListener('touchstart', startCropTouch, { passive: false });
+      $('cropTouchArea').addEventListener('touchmove', moveCropTouch, { passive: false });
+      $('cropTouchArea').addEventListener('touchend', endCropTouch);
+      $('cropTouchArea').addEventListener('touchcancel', endCropTouch);
       $('applyCropBtn').onclick = applySquareCrop;
       $('cancelCropBtn').onclick = () => { hideCropControls(); clearPhotoInputs(); };
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); closeLocationDetail(); } });
@@ -1131,15 +1123,22 @@
       reader.readAsDataURL(file);
     }
 
+    function handlePhotoTrigger() {
+      hidePhotoLibrary();
+      if (currentPhoto) {
+        openCropControls(currentPhoto);
+        return;
+      }
+      $('photoInput').click();
+    }
+
     function isImageFile(file) {
       if (file.type && file.type.startsWith('image/')) return true;
       return /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(file.name || '');
     }
 
     function clearPhotoInputs() {
-      $('photoLibraryInput').value = '';
       $('photoInput').value = '';
-      $('cameraInput').value = '';
     }
 
     function openCropControls(dataUrl) {
@@ -1171,6 +1170,93 @@
       $('cropImage').style.width = isWide ? `${100 * zoom}%` : 'auto';
       $('cropImage').style.height = isWide ? 'auto' : `${100 * zoom}%`;
       $('cropImage').style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+    }
+
+    function setCropValues(zoom, x, y) {
+      $('cropZoom').value = Math.min(3, Math.max(1, zoom));
+      $('cropX').value = Math.min(100, Math.max(-100, x));
+      $('cropY').value = Math.min(100, Math.max(-100, y));
+      updateCropPreview();
+    }
+
+    function startCropPointer(e) {
+      if (!cropSource || e.pointerType === 'touch') return;
+      e.preventDefault();
+      $('cropTouchArea').setPointerCapture(e.pointerId);
+      cropGesture = {
+        mode: 'pointer',
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: Number($('cropX').value),
+        baseY: Number($('cropY').value)
+      };
+    }
+
+    function moveCropPointer(e) {
+      if (!cropGesture || cropGesture.mode !== 'pointer') return;
+      e.preventDefault();
+      setCropValues(
+        Number($('cropZoom').value),
+        cropGesture.baseX + e.clientX - cropGesture.startX,
+        cropGesture.baseY + e.clientY - cropGesture.startY
+      );
+    }
+
+    function endCropPointer() {
+      if (cropGesture?.mode === 'pointer') cropGesture = null;
+    }
+
+    function getTouchDistance(touches) {
+      if (touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    }
+
+    function getTouchCenter(touches) {
+      if (touches.length === 1) return { x: touches[0].clientX, y: touches[0].clientY };
+      return {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2
+      };
+    }
+
+    function startCropTouch(e) {
+      if (!cropSource) return;
+      e.preventDefault();
+      const center = getTouchCenter(e.touches);
+      cropGesture = {
+        mode: 'touch',
+        startX: center.x,
+        startY: center.y,
+        startDistance: getTouchDistance(e.touches),
+        baseZoom: Number($('cropZoom').value),
+        baseX: Number($('cropX').value),
+        baseY: Number($('cropY').value)
+      };
+    }
+
+    function moveCropTouch(e) {
+      if (!cropGesture || cropGesture.mode !== 'touch') return;
+      e.preventDefault();
+      const center = getTouchCenter(e.touches);
+      const distance = getTouchDistance(e.touches);
+      const nextZoom = distance && cropGesture.startDistance
+        ? cropGesture.baseZoom * (distance / cropGesture.startDistance)
+        : Number($('cropZoom').value);
+      setCropValues(
+        nextZoom,
+        cropGesture.baseX + center.x - cropGesture.startX,
+        cropGesture.baseY + center.y - cropGesture.startY
+      );
+    }
+
+    function endCropTouch(e) {
+      if (e.touches && e.touches.length) {
+        startCropTouch(e);
+        return;
+      }
+      if (cropGesture?.mode === 'touch') cropGesture = null;
     }
 
     function applySquareCrop() {
